@@ -1,5 +1,6 @@
 package mkoner.ads_dental_surgeries.model;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
@@ -13,6 +14,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 public class Dentist extends User {
+    @Column(length = 50)
     private String specialization;
 
     @OneToMany(mappedBy = "dentist")

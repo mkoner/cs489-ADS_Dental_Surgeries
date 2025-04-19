@@ -1,5 +1,6 @@
 package mkoner.ads_dental_surgeries.model;
 
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
@@ -15,6 +16,9 @@ import java.util.List;
 @NoArgsConstructor
 public class Patient extends User {
     private LocalDate dateOfBirth;
+
+    @Embedded
+    private Address address;
 
     @OneToMany(mappedBy = "patient")
     private List<Appointment> appointments;

@@ -1,48 +1,139 @@
 package mkoner.ads_dental_surgeries.service.impl;
 
-import mkoner.ads_dental_surgeries.model.Appointment;
-import mkoner.ads_dental_surgeries.model.AppointmentStatus;
+import lombok.RequiredArgsConstructor;
+import mkoner.ads_dental_surgeries.dto.appointment.AppointmentRequestDTO;
+import mkoner.ads_dental_surgeries.dto.appointment.AppointmentResponseDTO;
+import mkoner.ads_dental_surgeries.dto.bill.BillRequestDTO;
+import mkoner.ads_dental_surgeries.dto.bill.BillResponseDTO;
+import mkoner.ads_dental_surgeries.dto.payment.PaymentRequestDTO;
+import mkoner.ads_dental_surgeries.dto.payment.PaymentResponseDTO;
+import mkoner.ads_dental_surgeries.exception.BadRequestException;
+import mkoner.ads_dental_surgeries.exception.ResourceNotFoundException;
+import mkoner.ads_dental_surgeries.mapper.AppointmentMapper;
+import mkoner.ads_dental_surgeries.mapper.BillMapper;
+import mkoner.ads_dental_surgeries.mapper.PaymentMapper;
+import mkoner.ads_dental_surgeries.model.*;
 import mkoner.ads_dental_surgeries.repository.AppointmentRepository;
+import mkoner.ads_dental_surgeries.repository.DentistRepository;
+import mkoner.ads_dental_surgeries.repository.PatientRepository;
+import mkoner.ads_dental_surgeries.repository.SurgeryRepository;
 import mkoner.ads_dental_surgeries.service.AppointmentService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class AppointmentServiceImpl implements AppointmentService {
 
     private final AppointmentRepository appointmentRepository;
+    private final AppointmentMapper appointmentMapper;
+    private final PatientRepository patientRepository;
+    private final DentistRepository dentistRepository;
+    private final SurgeryRepository surgeryRepository;
+    private final BillMapper billMapper;
+    private final PaymentMapper paymentMapper;
 
-    public AppointmentServiceImpl(AppointmentRepository appointmentRepository) {
-        this.appointmentRepository = appointmentRepository;
+    public List<AppointmentResponseDTO> getAllAppointments() {
+        return appointmentRepository.findAll().stream()
+                .map(appointmentMapper::mapToAppointmentResponseDTO).toList();
     }
 
-    public List<Appointment> getAllAppointments() {
-        return appointmentRepository.findAll();
+    public AppointmentResponseDTO getAppointmentById(Long id) {
+        var appointment = appointmentRepository.findById(id).orElseThrow(()->new ResourceNotFoundException("Appointment with id " + id + " not found"));
+        return appointmentMapper.mapToAppointmentResponseDTO(appointment);
     }
 
-    public Appointment getAppointmentById(Long id) {
-        return appointmentRepository.findById(id).orElse(null);
-    }
-
-    public Appointment saveAppointment(Appointment appointment) {
-        return appointmentRepository.save(appointment);
+    public AppointmentResponseDTO saveAppointment(AppointmentRequestDTO appointmentRequestDTO) {
+        Long patientId = appointmentRequestDTO.patientId();
+        Long dentistId = appointmentRequestDTO.dentistId();
+        Long surgeryId = appointmentRequestDTO.surgeryId();
+        Patient patient = patientRepository.findById(patientId)
+                .orElseThrow(()->new ResourceNotFoundException("Patient with id " + patientId + " not found"));
+        Dentist dentist = dentistId == null ? null : dentistRepository.findById(dentistId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Dentist with id " + dentistId + " not found"));
+        Surgery surgery = surgeryRepository.findById(surgeryId).
+                orElseThrow(() -> new ResourceNotFoundException("Surgery with id " + surgeryId + " not found"));
+        Appointment appointment = new Appointment(
+                appointmentRequestDTO.dateTime(),
+                appointmentRequestDTO.status(),
+                patient,
+                dentist,
+                surgery
+        );
+        return appointmentMapper.mapToAppointmentResponseDTO(appointmentRepository.save(appointment));
     }
 
     public void deleteAppointment(Long id) {
         appointmentRepository.deleteById(id);
     }
 
-    public List<Appointment> getAppointmentsByPatient(Long patientId) {
-        return appointmentRepository.findByPatientUserId(patientId);
+    public List<AppointmentResponseDTO> getAppointmentsByPatient(Long patientId) {
+        return appointmentRepository.findByPatientUserId(patientId).stream()
+                .map(appointmentMapper::mapToAppointmentResponseDTO).toList();
     }
 
-    public List<Appointment> getAppointmentsByDentist(Long dentistId) {
-        return appointmentRepository.findByDentistUserId(dentistId);
+    public List<AppointmentResponseDTO> getAppointmentsByDentist(Long dentistId) {
+        return appointmentRepository.findByDentistUserId(dentistId).stream()
+                .map(appointmentMapper::mapToAppointmentResponseDTO).toList();
     }
 
-    public List<Appointment> getAppointmentsByStatus(AppointmentStatus status) {
-        return appointmentRepository.findByStatus(status);
+    public List<AppointmentResponseDTO> getAppointmentsByStatus(AppointmentStatus status) {
+        return appointmentRepository.findByStatus(status).stream()
+                .map(appointmentMapper::mapToAppointmentResponseDTO).toList();
+    }
+
+    @Override
+    @Transactional
+    public BillResponseDTO generateBill(Long appointmentId, BillRequestDTO billRequestDTO) {
+        Appointment appointment = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment with id " + appointmentId + " not found"));
+        Money money = new Money(billRequestDTO.amount(), billRequestDTO.currency(), billRequestDTO.currencySymbol());
+        appointment.generateBill(money, billRequestDTO.dueDate());
+        appointment = appointmentRepository.save(appointment);
+        return billMapper.mapToBillResponseDTO(appointment.getBill());
+    }
+
+    @Override
+    @Transactional
+    public PaymentResponseDTO makePayment(Long appointmentId, PaymentRequestDTO paymentRequestDTO) {
+        Appointment appointment = appointmentRepository.findById(appointmentId).
+                orElseThrow(() -> new ResourceNotFoundException("Appointment with id " + appointmentId + " not found"));
+        Bill bill = appointment.getBill();
+        if (bill == null) {
+            throw new BadRequestException("Appointment with id " + appointmentId + " has no associated bill");
+        }
+        Money money = new Money(paymentRequestDTO.amount(), bill.getAmount().getCurrency(), bill.getAmount().getCurrencySymbol());
+        bill.makePayment(money);
+        appointmentRepository.save(appointment);
+        return paymentMapper.mapToPaymentResponseDTO(appointment.getBill().getPayments().getLast());
+    }
+
+    @Override
+    public AppointmentResponseDTO updateAppointment(Long appointmentId, AppointmentRequestDTO appointmentRequestDTO) {
+        var existingAppointment = appointmentRepository.findById(appointmentId).orElseThrow(()->new ResourceNotFoundException("Appointment with id " + appointmentId + " not found"));
+        Long patientId = appointmentRequestDTO.patientId();
+        Long dentistId = appointmentRequestDTO.dentistId();
+        Long surgeryId = appointmentRequestDTO.surgeryId();
+        if(!existingAppointment.getPatient().getUserId().equals(patientId)){
+            Patient patient = patientRepository.findById(patientId)
+                    .orElseThrow(()->new ResourceNotFoundException("Patient with id " + patientId + " not found"));
+            existingAppointment.setPatient(patient);
+        }
+        if(!existingAppointment.getSurgery().getSurgeryId().equals(surgeryId)){
+            Surgery surgery =  surgeryRepository.findById(surgeryId).
+                    orElseThrow(() -> new ResourceNotFoundException("Surgery with id " + surgeryId + " not found"));
+            existingAppointment.setSurgery(surgery);
+        }
+        Dentist dentist = dentistId != null ?
+                dentistRepository.findById(dentistId).
+                orElseThrow(() -> new ResourceNotFoundException("Dentist with id " + dentistId + " not found"))
+                : null;
+        existingAppointment.setDentist(dentist);
+        existingAppointment.setDateTime(appointmentRequestDTO.dateTime());
+        existingAppointment.setStatus(appointmentRequestDTO.status());
+        return appointmentMapper.mapToAppointmentResponseDTO(appointmentRepository.save(existingAppointment));
     }
 }
 

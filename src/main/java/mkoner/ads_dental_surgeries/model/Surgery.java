@@ -14,9 +14,9 @@ public class Surgery {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long surgeryId;
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String name;
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, length = 15)
     private String phoneNumber;
 
     @Embedded

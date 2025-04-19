@@ -5,6 +5,7 @@ import lombok.Data;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -24,8 +25,8 @@ public class Bill {
     @OneToOne(mappedBy = "bill")
     private Appointment appointment;
 
-    @OneToMany(mappedBy = "bill")
-    private List<Payment> payments;
+    @OneToMany(mappedBy = "bill", cascade = CascadeType.ALL)
+    private List<Payment> payments = new ArrayList<>();
 
     public void makePayment(Money amount) {
         Payment payment = new Payment();

@@ -1,17 +1,26 @@
 package mkoner.ads_dental_surgeries.service;
 
+import mkoner.ads_dental_surgeries.dto.appointment.AppointmentRequestDTO;
+import mkoner.ads_dental_surgeries.dto.appointment.AppointmentResponseDTO;
+import mkoner.ads_dental_surgeries.dto.bill.BillRequestDTO;
+import mkoner.ads_dental_surgeries.dto.bill.BillResponseDTO;
+import mkoner.ads_dental_surgeries.dto.payment.PaymentRequestDTO;
+import mkoner.ads_dental_surgeries.dto.payment.PaymentResponseDTO;
 import mkoner.ads_dental_surgeries.model.Appointment;
 import mkoner.ads_dental_surgeries.model.AppointmentStatus;
 
 import java.util.List;
 
 public interface AppointmentService {
-    List<Appointment> getAllAppointments();
-    Appointment getAppointmentById(Long id);
-    Appointment saveAppointment(Appointment appointment);
+    List<AppointmentResponseDTO> getAllAppointments();
+    AppointmentResponseDTO getAppointmentById(Long id);
+    AppointmentResponseDTO saveAppointment(AppointmentRequestDTO appointment);
     void deleteAppointment(Long id);
-    List<Appointment> getAppointmentsByPatient(Long patientId);
-    List<Appointment> getAppointmentsByDentist(Long dentistId);
-    List<Appointment> getAppointmentsByStatus(AppointmentStatus status);
+    List<AppointmentResponseDTO> getAppointmentsByPatient(Long patientId);
+    List<AppointmentResponseDTO> getAppointmentsByDentist(Long dentistId);
+    List<AppointmentResponseDTO> getAppointmentsByStatus(AppointmentStatus status);
+    BillResponseDTO generateBill(Long appointmentId, BillRequestDTO billRequestDTO);
+    PaymentResponseDTO makePayment(Long appointmentId, PaymentRequestDTO paymentRequestDTO);
+    AppointmentResponseDTO updateAppointment(Long appointmentId, AppointmentRequestDTO appointmentRequestDTO);
 }
 

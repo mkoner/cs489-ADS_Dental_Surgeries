@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @Inheritance(strategy = InheritanceType.JOINED)
 @Data
 @NoArgsConstructor
-public abstract class User {
+public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long userId;
@@ -17,7 +17,7 @@ public abstract class User {
     private String firstName;
     @Column(nullable = false)
     private String lastName;
-    @Column(unique = true, nullable = false)
+    @Column(unique = true, nullable = false, length = 15)
     private String phoneNumber;
     @Column(unique = true, nullable = false)
     private String emailAddress;

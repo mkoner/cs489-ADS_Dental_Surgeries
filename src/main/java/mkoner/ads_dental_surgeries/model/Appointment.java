@@ -56,14 +56,15 @@ public class Appointment {
         this.status = AppointmentStatus.RESCHEDULED;
     }
 
-    public Bill generateBill(BigDecimal amount, LocalDate dueDate, String currency, String currencySymbol) {
+    public Bill generateBill(Money amount, LocalDate dueDate) {
         Bill bill = new Bill();
         bill.setAppointment(this);
         bill.setDateOfBilling(LocalDate.now());
         bill.setDueDate(dueDate);
-        bill.setAmount(new Money(amount, currency, currencySymbol)); // Example
+        bill.setAmount(amount); // Example
         this.bill = bill;
         return bill;
     }
+
 }
 

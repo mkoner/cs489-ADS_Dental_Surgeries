@@ -1,16 +1,18 @@
 package mkoner.ads_dental_surgeries.service;
 
+import mkoner.ads_dental_surgeries.dto.bill.BillRequestDTO;
+import mkoner.ads_dental_surgeries.dto.bill.BillResponseDTO;
 import mkoner.ads_dental_surgeries.model.Bill;
 
 import java.time.LocalDate;
 import java.util.List;
 
 public interface BillService {
-    List<Bill> getAllBills();
-    Bill getBillById(Long id);
-    Bill saveBill(Bill bill);
-    void deleteBill(Long id);
-    List<Bill> getBillsByAppointment(Long appointmentId);
-    List<Bill> getOverdueBills(LocalDate dueBefore);
+//    List<BillResponseDTO> getAllBills();
+//    BillResponseDTO getBillById(Long id);
+//    BillResponseDTO saveBill(BillRequestDTO bill);
+//    void deleteBill(Long id);
+//    List<BillResponseDTO> getBillsByAppointment(Long appointmentId);
+//    List<BillResponseDTO> getOverdueBills(LocalDate dueBefore);
 }
 

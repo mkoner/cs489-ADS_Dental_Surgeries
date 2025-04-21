@@ -15,6 +15,7 @@ import mkoner.ads_dental_surgeries.repository.PatientRepository;
 import mkoner.ads_dental_surgeries.repository.RoleRepository;
 import mkoner.ads_dental_surgeries.repository.UserRepository;
 import mkoner.ads_dental_surgeries.service.PatientService;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +31,7 @@ public class PatientServiceImpl implements PatientService {
     private final PatientMapper patientMapper;
     private final UserRepository userRepository;
     private final AddressMapper addressMapper;
+    private final PasswordEncoder passwordEncoder;
 
     public List<PatientResponseDTO> getAllPatients() {
         return patientRepository.findAll().stream()
@@ -53,6 +55,7 @@ public class PatientServiceImpl implements PatientService {
         userRepository.findByPhoneNumber(patient.phoneNumber())
                 .ifPresent(u -> { throw new BadRequestException("Phone number is already in use by another user"); });
         Patient newPatient = patientMapper.mapToPatient(patient);
+        newPatient.setPassword(passwordEncoder.encode(newPatient.getPassword()));
         String roleName = newPatient.getRole().getRoleName();
         Role role = roleRepository.findByRoleName(roleName)
                 .orElseGet(() -> roleRepository.save(new Role(roleName)));

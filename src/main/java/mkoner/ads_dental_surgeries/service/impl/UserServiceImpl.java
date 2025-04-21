@@ -12,6 +12,7 @@ import mkoner.ads_dental_surgeries.model.User;
 import mkoner.ads_dental_surgeries.repository.RoleRepository;
 import mkoner.ads_dental_surgeries.repository.UserRepository;
 import mkoner.ads_dental_surgeries.service.UserService;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +26,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final UserMapper userMapper;
+    private final PasswordEncoder passwordEncoder;
 
 
     public UserResponseDTO findUserById(Long id) {
@@ -57,6 +59,7 @@ public class UserServiceImpl implements UserService {
                 .ifPresent(u -> { throw new BadRequestException("Phone number is already in use by another user"); });
 
         var user = userMapper.mapToUser(userRequestDTO);
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
         String roleName = user.getRole().getRoleName();
         Role role = roleRepository.findByRoleName(roleName)
                 .orElseGet(() -> roleRepository.save(new Role(roleName)));

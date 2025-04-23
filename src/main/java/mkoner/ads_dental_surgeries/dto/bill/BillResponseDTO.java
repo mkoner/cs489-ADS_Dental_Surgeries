@@ -12,6 +12,7 @@ public record BillResponseDTO(
         MoneyDTO money,
         LocalDate dueDate,
         LocalDate billingDate,
+        String paymentStatus,
         List<PaymentResponseDTO> payments
 ) {
 }

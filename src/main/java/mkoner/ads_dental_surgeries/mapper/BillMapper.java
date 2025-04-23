@@ -28,6 +28,7 @@ public class BillMapper {
                 moneyMapper.mapToMoneyDTO(bill.getAmount()),
                 bill.getDueDate(),
                 bill.getDateOfBilling(),
+                bill.getPaymentStatus().name(),
                 bill.getPayments().stream().map(paymentMapper::mapToPaymentResponseDTO).toList()
         );
     }

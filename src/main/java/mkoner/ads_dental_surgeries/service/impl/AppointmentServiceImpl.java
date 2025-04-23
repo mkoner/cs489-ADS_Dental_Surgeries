@@ -28,6 +28,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -57,6 +58,11 @@ public class AppointmentServiceImpl implements AppointmentService {
         Long surgeryId = appointmentRequestDTO.surgeryId();
         Patient patient = patientRepository.findById(patientId)
                 .orElseThrow(()->new ResourceNotFoundException("Patient with id " + patientId + " not found"));
+        //Check if patient has any overdue unpaid bill
+        List<Long> unpaidAppointments = getAppointmentIdsWithOverdueUnpaidBillsByPatientId(patientId);
+        if(!unpaidAppointments.isEmpty()) {
+            throw new BadRequestException("Patient with id " + patientId + " has overdue unpaid bills for these appointments: " + unpaidAppointments);
+        }
         Dentist dentist = dentistId == null ? null : dentistRepository.findById(dentistId)
                         .orElseThrow(() -> new ResourceNotFoundException("Dentist with id " + dentistId + " not found"));
         //Check if dentist has more than 5 appointments
@@ -188,6 +194,22 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         appointmentRepository.save(appointment);
     }
+
+    public List<Long> getAppointmentIdsWithOverdueUnpaidBillsByPatientId(Long patientId) {
+        LocalDate today = LocalDate.now();
+        return appointmentRepository.findByPatientUserId(patientId).stream()
+                .filter(appointment -> {
+                    Bill bill = appointment.getBill();
+                    return bill != null &&
+                            bill.getPaymentStatus() != PaymentStatus.PAID &&
+                            bill.getDueDate() != null &&
+                            bill.getDueDate().isBefore(today);
+                })
+                .map(Appointment::getAppointmentId)
+                .collect(Collectors.toList());
+    }
+
+
 
     private boolean isOfficeManager() {
         return SecurityContextHolder.getContext().getAuthentication() != null && SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()

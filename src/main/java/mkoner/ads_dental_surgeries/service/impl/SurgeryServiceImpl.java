@@ -1,19 +1,25 @@
 package mkoner.ads_dental_surgeries.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import mkoner.ads_dental_surgeries.dto.surgery.SurgeryFilterDTO;
 import mkoner.ads_dental_surgeries.dto.surgery.SurgeryRequestDTO;
 import mkoner.ads_dental_surgeries.dto.surgery.SurgeryResponseDTO;
 import mkoner.ads_dental_surgeries.exception.custom_exception.BadRequestException;
 import mkoner.ads_dental_surgeries.exception.custom_exception.ResourceNotFoundException;
+import mkoner.ads_dental_surgeries.filter_specification.SurgerySpecification;
 import mkoner.ads_dental_surgeries.mapper.AddressMapper;
 import mkoner.ads_dental_surgeries.mapper.SurgeryMapper;
 import mkoner.ads_dental_surgeries.model.Surgery;
 import mkoner.ads_dental_surgeries.repository.SurgeryRepository;
 import mkoner.ads_dental_surgeries.service.SurgeryService;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -70,5 +76,27 @@ public class SurgeryServiceImpl implements SurgeryService {
         existingSurgery.setName(surgeryRequestDTO.name());
         return surgeryMapper.mapToSurgeryResponseDTO(existingSurgery);
     }
+
+    public Page<SurgeryResponseDTO> getFilteredSurgeriesWithPagination(SurgeryFilterDTO filterDTO, Pageable pageable) {
+        Specification<Surgery> spec = Specification.where(null);
+
+        if (filterDTO.name() != null) {
+            spec = spec.and(SurgerySpecification.hasName(filterDTO.name()));
+        }
+        if (filterDTO.phoneNumber() != null) {
+            spec = spec.and(SurgerySpecification.hasPhoneNumber(filterDTO.phoneNumber()));
+        }
+        if (filterDTO.city() != null) {
+            spec = spec.and(SurgerySpecification.hasCity(filterDTO.city()));
+        }
+        if (filterDTO.country() != null) {
+            spec = spec.and(SurgerySpecification.hasCountry(filterDTO.country()));
+        }
+
+        Page<Surgery> surgeries = surgeryRepository.findAll(spec, pageable);
+        return surgeries.map(surgeryMapper::mapToSurgeryResponseDTO);
+    }
+
+
 }
 

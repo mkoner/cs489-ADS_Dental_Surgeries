@@ -1,11 +1,13 @@
 package mkoner.ads_dental_surgeries.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import mkoner.ads_dental_surgeries.dto.patient.PatientFilterDTO;
 import mkoner.ads_dental_surgeries.dto.patient.PatientRequestDTO;
 import mkoner.ads_dental_surgeries.dto.patient.PatientResponseDTO;
 import mkoner.ads_dental_surgeries.dto.patient.PatientUpdateDTO;
 import mkoner.ads_dental_surgeries.exception.custom_exception.BadRequestException;
 import mkoner.ads_dental_surgeries.exception.custom_exception.ResourceNotFoundException;
+import mkoner.ads_dental_surgeries.filter_specification.PatientSpecification;
 import mkoner.ads_dental_surgeries.mapper.AddressMapper;
 import mkoner.ads_dental_surgeries.mapper.PatientMapper;
 import mkoner.ads_dental_surgeries.model.Patient;
@@ -15,6 +17,9 @@ import mkoner.ads_dental_surgeries.repository.RoleRepository;
 import mkoner.ads_dental_surgeries.repository.UserRepository;
 import mkoner.ads_dental_surgeries.service.PatientService;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -99,6 +104,22 @@ public class PatientServiceImpl implements PatientService {
         existingPatient.setAddress(addressMapper.mapToAddress(patientRequestDTO.address()));
         return patientMapper.mapToPatientResponseDTO(patientRepository.save(existingPatient));
     }
+
+    public Page<PatientResponseDTO> getFilteredPatientsWithPagination(PatientFilterDTO filterDTO, Pageable pageable) {
+
+        Specification<Patient> spec = Specification.where(null);
+
+        if (filterDTO.firstName() != null) spec = spec.and(PatientSpecification.hasFirstName(filterDTO.firstName()));
+        if (filterDTO.lastName() != null) spec = spec.and(PatientSpecification.hasLastName(filterDTO.lastName()));
+        if (filterDTO.phoneNumber() != null) spec = spec.and(PatientSpecification.hasPhoneNumber(filterDTO.phoneNumber()));
+        if (filterDTO.emailAddress() != null) spec = spec.and(PatientSpecification.hasEmail(filterDTO.emailAddress()));
+        if (filterDTO.city() != null) spec = spec.and(PatientSpecification.hasCity(filterDTO.city()));
+        if (filterDTO.country() != null) spec = spec.and(PatientSpecification.hasCountry(filterDTO.country()));
+
+        var patients = patientRepository.findAll(spec, pageable);
+        return patients.map(patientMapper::mapToPatientResponseDTO);
+    }
+
 
 }
 

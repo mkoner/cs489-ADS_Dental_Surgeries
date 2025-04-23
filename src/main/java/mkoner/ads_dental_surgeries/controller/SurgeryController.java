@@ -2,9 +2,13 @@ package mkoner.ads_dental_surgeries.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import mkoner.ads_dental_surgeries.dto.surgery.SurgeryFilterDTO;
 import mkoner.ads_dental_surgeries.dto.surgery.SurgeryRequestDTO;
 import mkoner.ads_dental_surgeries.dto.surgery.SurgeryResponseDTO;
 import mkoner.ads_dental_surgeries.service.SurgeryService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -31,9 +35,21 @@ public class SurgeryController {
     }
 
     @GetMapping
-    public ResponseEntity<List<SurgeryResponseDTO>> getAllSurgeries() {
-        return ResponseEntity.ok(surgeryService.getAllSurgeries());
+    public ResponseEntity<?> getSurgeries(
+            @RequestParam(value = "fetchAll", required = false, defaultValue = "false") boolean fetchAll,
+            @ModelAttribute SurgeryFilterDTO filterDTO,
+            @PageableDefault(size = 10, sort = "name") Pageable pageable) {
+
+        if (fetchAll) {
+            List<SurgeryResponseDTO> surgeries = surgeryService.getAllSurgeries();
+            return ResponseEntity.ok(surgeries);
+        } else {
+            Page<SurgeryResponseDTO> filteredSurgeries = surgeryService.getFilteredSurgeriesWithPagination(filterDTO, pageable);
+            return ResponseEntity.ok(filteredSurgeries);
+        }
     }
+
+
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('OFFICE-MANAGER')")
@@ -47,5 +63,6 @@ public class SurgeryController {
         surgeryService.deleteSurgery(id);
         return ResponseEntity.noContent().build();
     }
+
 }
 

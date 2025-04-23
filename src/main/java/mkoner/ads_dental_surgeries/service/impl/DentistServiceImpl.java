@@ -1,11 +1,13 @@
 package mkoner.ads_dental_surgeries.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import mkoner.ads_dental_surgeries.dto.dentist.DentistFilterDTO;
 import mkoner.ads_dental_surgeries.dto.dentist.DentistRequestDTO;
 import mkoner.ads_dental_surgeries.dto.dentist.DentistResponseDTO;
 import mkoner.ads_dental_surgeries.dto.dentist.DentistUpdateDTO;
 import mkoner.ads_dental_surgeries.exception.custom_exception.BadRequestException;
 import mkoner.ads_dental_surgeries.exception.custom_exception.ResourceNotFoundException;
+import mkoner.ads_dental_surgeries.filter_specification.DentistSpecification;
 import mkoner.ads_dental_surgeries.mapper.DentistMapper;
 import mkoner.ads_dental_surgeries.model.Dentist;
 import mkoner.ads_dental_surgeries.model.Role;
@@ -14,6 +16,9 @@ import mkoner.ads_dental_surgeries.repository.RoleRepository;
 import mkoner.ads_dental_surgeries.repository.UserRepository;
 import mkoner.ads_dental_surgeries.service.DentistService;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -96,5 +101,19 @@ public class DentistServiceImpl implements DentistService {
         existingDentist.setSpecialization(dentistRequestDTO.specialization());
         return dentistMapper.mapToDentistResponseDTO(dentistRepository.save(existingDentist));
     }
+
+    public Page<DentistResponseDTO> getFilteredDentists(DentistFilterDTO filterDTO, Pageable pageable) {
+        Specification<Dentist> spec = Specification.where(null);
+
+        if (filterDTO.firstName() != null) spec = spec.and(DentistSpecification.hasFirstName(filterDTO.firstName()));
+        if (filterDTO.lastName() != null) spec = spec.and(DentistSpecification.hasLastName(filterDTO.lastName()));
+        if (filterDTO.phoneNumber() != null) spec = spec.and(DentistSpecification.hasPhoneNumber(filterDTO.phoneNumber()));
+        if (filterDTO.emailAddress() != null) spec = spec.and(DentistSpecification.hasEmail(filterDTO.emailAddress()));
+        if (filterDTO.specialization() != null) spec = spec.and(DentistSpecification.hasSpecialization(filterDTO.specialization()));
+
+        var dentists = dentistRepository.findAll(spec, pageable);
+        return dentists.map(dentistMapper::mapToDentistResponseDTO);
+    }
+
 }
 

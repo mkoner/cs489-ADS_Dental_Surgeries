@@ -1,17 +1,23 @@
 package mkoner.ads_dental_surgeries.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import mkoner.ads_dental_surgeries.dto.user.UserFilterDTO;
 import mkoner.ads_dental_surgeries.dto.user.UserRequestDTO;
 import mkoner.ads_dental_surgeries.dto.user.UserResponseDTO;
 import mkoner.ads_dental_surgeries.dto.user.UserUpdateDTO;
 import mkoner.ads_dental_surgeries.exception.custom_exception.BadRequestException;
 import mkoner.ads_dental_surgeries.exception.custom_exception.ResourceNotFoundException;
+import mkoner.ads_dental_surgeries.filter_specification.UserSpecification;
 import mkoner.ads_dental_surgeries.mapper.UserMapper;
 import mkoner.ads_dental_surgeries.model.Role;
+import mkoner.ads_dental_surgeries.model.User;
 import mkoner.ads_dental_surgeries.repository.RoleRepository;
 import mkoner.ads_dental_surgeries.repository.UserRepository;
 import mkoner.ads_dental_surgeries.service.UserService;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -117,5 +123,29 @@ public class UserServiceImpl implements UserService {
         existingUser.setEmailAddress(userUpdateDTO.email());
         return userMapper.mapToUserResponseDTO(userRepository.save(existingUser));
     }
+
+    public Page<UserResponseDTO> getFilteredUsersWithPagination(UserFilterDTO filterDTO, Pageable pageable) {
+        Specification<User> spec = Specification.where(null);
+
+        if (filterDTO.firstName() != null) {
+            spec = spec.and(UserSpecification.hasFirstName(filterDTO.firstName()));
+        }
+        if (filterDTO.lastName() != null) {
+            spec = spec.and(UserSpecification.hasLastName(filterDTO.lastName()));
+        }
+        if (filterDTO.phoneNumber() != null) {
+            spec = spec.and(UserSpecification.hasPhoneNumber(filterDTO.phoneNumber()));
+        }
+        if (filterDTO.emailAddress() != null) {
+            spec = spec.and(UserSpecification.hasEmailAddress(filterDTO.emailAddress()));
+        }
+        if (filterDTO.roleName() != null) {
+            spec = spec.and(UserSpecification.hasRoleName(filterDTO.roleName()));
+        }
+
+        Page<User> users = userRepository.findAll(spec, pageable);
+        return users.map(userMapper::mapToUserResponseDTO);
+    }
+
 }
 

@@ -3,11 +3,14 @@ package mkoner.ads_dental_surgeries.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import mkoner.ads_dental_surgeries.dto.appointment.AppointmentResponseDTO;
+import mkoner.ads_dental_surgeries.dto.patient.PatientFilterDTO;
 import mkoner.ads_dental_surgeries.dto.patient.PatientRequestDTO;
 import mkoner.ads_dental_surgeries.dto.patient.PatientResponseDTO;
 import mkoner.ads_dental_surgeries.dto.patient.PatientUpdateDTO;
 import mkoner.ads_dental_surgeries.service.AppointmentService;
 import mkoner.ads_dental_surgeries.service.PatientService;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -37,9 +40,18 @@ public class PatientController {
 
     @GetMapping
     @PreAuthorize("hasRole('OFFICE-MANAGER')")
-    public ResponseEntity<List<PatientResponseDTO>> getAllPatients() {
-        return ResponseEntity.ok(patientService.getAllPatients());
+    public ResponseEntity<?> getPatients(
+            @ModelAttribute PatientFilterDTO filterDTO,
+            @PageableDefault(size = 10, sort = "firstName") Pageable pageable,
+            @RequestParam(defaultValue = "false") boolean fetchAll) {
+        if(fetchAll) {
+            return ResponseEntity.ok(patientService.getAllPatients());
+        }
+        else{
+            return ResponseEntity.ok(patientService.getFilteredPatientsWithPagination(filterDTO, pageable));
+        }
     }
+
 
     @PutMapping("/{id}")
     @PreAuthorize("#id == authentication.principal.userId or hasRole('OFFICE-MANAGER')")

@@ -1,6 +1,7 @@
 package mkoner.ads_dental_surgeries.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import mkoner.ads_dental_surgeries.dto.appointment.AppointmentFilterDTO;
 import mkoner.ads_dental_surgeries.dto.appointment.AppointmentRequestDTO;
 import mkoner.ads_dental_surgeries.dto.appointment.AppointmentResponseDTO;
 import mkoner.ads_dental_surgeries.dto.appointment.RescheduleAppointmentDTO;
@@ -10,6 +11,7 @@ import mkoner.ads_dental_surgeries.dto.payment.PaymentRequestDTO;
 import mkoner.ads_dental_surgeries.dto.payment.PaymentResponseDTO;
 import mkoner.ads_dental_surgeries.exception.custom_exception.BadRequestException;
 import mkoner.ads_dental_surgeries.exception.custom_exception.ResourceNotFoundException;
+import mkoner.ads_dental_surgeries.filter_specification.AppointmentSpecification;
 import mkoner.ads_dental_surgeries.mapper.AppointmentMapper;
 import mkoner.ads_dental_surgeries.mapper.BillMapper;
 import mkoner.ads_dental_surgeries.mapper.PaymentMapper;
@@ -19,6 +21,9 @@ import mkoner.ads_dental_surgeries.repository.DentistRepository;
 import mkoner.ads_dental_surgeries.repository.PatientRepository;
 import mkoner.ads_dental_surgeries.repository.SurgeryRepository;
 import mkoner.ads_dental_surgeries.service.AppointmentService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -182,20 +187,39 @@ public class AppointmentServiceImpl implements AppointmentService {
         return appointmentMapper.mapToAppointmentResponseDTO(updated);
     }
     @Override
-    public void cancelAppointment(Long id) {
+    public String cancelAppointment(Long id) {
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
-
+        String message = "";
         if (isOfficeManager()) {
             appointment.setStatus(AppointmentStatus.CANCELLED);
+            message = "Appointment: " + id + " has been cancelled";
         } else {
             appointment.setStatus(AppointmentStatus.CANCELLATION_REQUESTED);
+            message = "Cancellation request for Appointment: " + id + " succeeded";
         }
 
         appointmentRepository.save(appointment);
+        return message;
     }
 
-    public List<Long> getAppointmentIdsWithOverdueUnpaidBillsByPatientId(Long patientId) {
+    public Page<AppointmentResponseDTO> getFilteredAppointments(AppointmentFilterDTO filterDTO, Pageable pageable) {
+        Specification<Appointment> spec = Specification.where(null);
+
+        if (filterDTO.appointmentDate() != null) spec = spec.and(AppointmentSpecification.hasAppointmentDate(filterDTO.appointmentDate()));
+        if (filterDTO.status() != null) spec = spec.and(AppointmentSpecification.hasStatus(filterDTO.status()));
+        if (filterDTO.patientEmail() != null) spec = spec.and(AppointmentSpecification.hasPatientEmail(filterDTO.patientEmail()));
+        if (filterDTO.dentistEmail() != null) spec = spec.and(AppointmentSpecification.hasDentistEmail(filterDTO.dentistEmail()));
+        if (filterDTO.surgeryCountry() != null) spec = spec.and(AppointmentSpecification.hasSurgeryCountry(filterDTO.surgeryCountry()));
+        if (filterDTO.surgeryCity() != null) spec = spec.and(AppointmentSpecification.hasSurgeryCity(filterDTO.surgeryCity()));
+        if (filterDTO.paymentStatus() != null) spec = spec.and(AppointmentSpecification.hasPaymentStatus(filterDTO.paymentStatus()));
+
+        var appointments = appointmentRepository.findAll(spec, pageable);
+        return appointments.map(appointmentMapper::mapToAppointmentResponseDTO);
+    }
+
+
+    private List<Long> getAppointmentIdsWithOverdueUnpaidBillsByPatientId(Long patientId) {
         LocalDate today = LocalDate.now();
         return appointmentRepository.findByPatientUserId(patientId).stream()
                 .filter(appointment -> {
@@ -208,8 +232,6 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .map(Appointment::getAppointmentId)
                 .collect(Collectors.toList());
     }
-
-
 
     private boolean isOfficeManager() {
         return SecurityContextHolder.getContext().getAuthentication() != null && SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()

@@ -1,5 +1,6 @@
 package mkoner.ads_dental_surgeries.service;
 
+import mkoner.ads_dental_surgeries.dto.appointment.AppointmentFilterDTO;
 import mkoner.ads_dental_surgeries.dto.appointment.AppointmentRequestDTO;
 import mkoner.ads_dental_surgeries.dto.appointment.AppointmentResponseDTO;
 import mkoner.ads_dental_surgeries.dto.appointment.RescheduleAppointmentDTO;
@@ -9,6 +10,8 @@ import mkoner.ads_dental_surgeries.dto.payment.PaymentRequestDTO;
 import mkoner.ads_dental_surgeries.dto.payment.PaymentResponseDTO;
 import mkoner.ads_dental_surgeries.model.Appointment;
 import mkoner.ads_dental_surgeries.model.AppointmentStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -24,6 +27,7 @@ public interface AppointmentService {
     PaymentResponseDTO makePayment(Long appointmentId, PaymentRequestDTO paymentRequestDTO);
     AppointmentResponseDTO updateAppointment(Long appointmentId, AppointmentRequestDTO appointmentRequestDTO);
     AppointmentResponseDTO rescheduleAppointment(Long appointmentId, RescheduleAppointmentDTO rescheduleAppointmentDTO);
-    void cancelAppointment(Long appointmentId);
+    String cancelAppointment(Long appointmentId);
+    Page<AppointmentResponseDTO> getFilteredAppointments(AppointmentFilterDTO filterDTO, Pageable pageable);
 }
 

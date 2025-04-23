@@ -8,8 +8,8 @@ import mkoner.ads_dental_surgeries.dto.bill.BillRequestDTO;
 import mkoner.ads_dental_surgeries.dto.bill.BillResponseDTO;
 import mkoner.ads_dental_surgeries.dto.payment.PaymentRequestDTO;
 import mkoner.ads_dental_surgeries.dto.payment.PaymentResponseDTO;
-import mkoner.ads_dental_surgeries.exception.BadRequestException;
-import mkoner.ads_dental_surgeries.exception.ResourceNotFoundException;
+import mkoner.ads_dental_surgeries.exception.custom_exception.BadRequestException;
+import mkoner.ads_dental_surgeries.exception.custom_exception.ResourceNotFoundException;
 import mkoner.ads_dental_surgeries.mapper.AppointmentMapper;
 import mkoner.ads_dental_surgeries.mapper.BillMapper;
 import mkoner.ads_dental_surgeries.mapper.PaymentMapper;
@@ -23,7 +23,12 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -53,8 +58,17 @@ public class AppointmentServiceImpl implements AppointmentService {
         Long surgeryId = appointmentRequestDTO.surgeryId();
         Patient patient = patientRepository.findById(patientId)
                 .orElseThrow(()->new ResourceNotFoundException("Patient with id " + patientId + " not found"));
+        //Check if patient has any overdue unpaid bill
+        List<Long> unpaidAppointments = getAppointmentIdsWithOverdueUnpaidBillsByPatientId(patientId);
+        if(!unpaidAppointments.isEmpty()) {
+            throw new BadRequestException("Patient with id " + patientId + " has overdue unpaid bills for these appointments: " + unpaidAppointments);
+        }
         Dentist dentist = dentistId == null ? null : dentistRepository.findById(dentistId)
                         .orElseThrow(() -> new ResourceNotFoundException("Dentist with id " + dentistId + " not found"));
+        //Check if dentist has more than 5 appointments
+        if(dentistExceedsAppointmentLimit(dentistId, LocalDate.from(appointmentRequestDTO.dateTime()))){
+            throw new BadRequestException("Dentist already has 5 appointments this week.");
+        }
         Surgery surgery = surgeryRepository.findById(surgeryId).
                 orElseThrow(() -> new ResourceNotFoundException("Surgery with id " + surgeryId + " not found"));
         AppointmentStatus status;
@@ -125,6 +139,10 @@ public class AppointmentServiceImpl implements AppointmentService {
         Long patientId = appointmentRequestDTO.patientId();
         Long dentistId = appointmentRequestDTO.dentistId();
         Long surgeryId = appointmentRequestDTO.surgeryId();
+        //Check if dentist has more than 5 appointments
+        if(dentistExceedsAppointmentLimit(dentistId, LocalDate.from(appointmentRequestDTO.dateTime()))){
+            throw new BadRequestException("Dentist already has 5 appointments this week.");
+        }
         if(!existingAppointment.getPatient().getUserId().equals(patientId)){
             Patient patient = patientRepository.findById(patientId)
                     .orElseThrow(()->new ResourceNotFoundException("Patient with id " + patientId + " not found"));
@@ -152,6 +170,10 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setDateTime(dto.newDateTime());
         if (isOfficeManager()) {
             appointment.setStatus(AppointmentStatus.RESCHEDULED);
+            //Check if dentist has more than 5 appointments
+            if(appointment.getDentist() != null && dentistExceedsAppointmentLimit(appointment.getDentist().getUserId(), LocalDate.from(dto.newDateTime()))){
+                throw new BadRequestException("Dentist already has 5 appointments this week.");
+            }
         } else {
             appointment.setStatus(AppointmentStatus.RESCHEDULE_REQUESTED);
         }
@@ -173,9 +195,45 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointmentRepository.save(appointment);
     }
 
+    public List<Long> getAppointmentIdsWithOverdueUnpaidBillsByPatientId(Long patientId) {
+        LocalDate today = LocalDate.now();
+        return appointmentRepository.findByPatientUserId(patientId).stream()
+                .filter(appointment -> {
+                    Bill bill = appointment.getBill();
+                    return bill != null &&
+                            bill.getPaymentStatus() != PaymentStatus.PAID &&
+                            bill.getDueDate() != null &&
+                            bill.getDueDate().isBefore(today);
+                })
+                .map(Appointment::getAppointmentId)
+                .collect(Collectors.toList());
+    }
+
+
+
     private boolean isOfficeManager() {
         return SecurityContextHolder.getContext().getAuthentication() != null && SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
                 .anyMatch(authority -> authority.getAuthority().equals("ROLE_" + "OFFICE-MANAGER"));
     }
+    private LocalDate getStartOfWeek(LocalDate date) {
+        return date.with(DayOfWeek.MONDAY);
+    }
+
+    private LocalDate getEndOfWeek(LocalDate date) {
+        return date.with(DayOfWeek.SUNDAY);
+    }
+    private boolean dentistExceedsAppointmentLimit(Long dentistId, LocalDate date) {
+        LocalDate startOfWeek = getStartOfWeek(date);
+        LocalDate endOfWeek = getEndOfWeek(date);
+
+        LocalDateTime startDateTime = startOfWeek.atStartOfDay();
+        LocalDateTime endDateTime = endOfWeek.atTime(LocalTime.MAX);
+
+        long existingAppointments = appointmentRepository
+                .countAppointmentsForDentistInWeek(dentistId, startDateTime, endDateTime);
+
+        return existingAppointments >= 5;
+    }
+
 }
 

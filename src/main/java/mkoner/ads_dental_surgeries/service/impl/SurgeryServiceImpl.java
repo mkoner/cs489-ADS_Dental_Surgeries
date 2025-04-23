@@ -3,15 +3,14 @@ package mkoner.ads_dental_surgeries.service.impl;
 import lombok.RequiredArgsConstructor;
 import mkoner.ads_dental_surgeries.dto.surgery.SurgeryRequestDTO;
 import mkoner.ads_dental_surgeries.dto.surgery.SurgeryResponseDTO;
-import mkoner.ads_dental_surgeries.exception.BadRequestException;
-import mkoner.ads_dental_surgeries.exception.ResourceNotFoundException;
+import mkoner.ads_dental_surgeries.exception.custom_exception.BadRequestException;
+import mkoner.ads_dental_surgeries.exception.custom_exception.ResourceNotFoundException;
 import mkoner.ads_dental_surgeries.mapper.AddressMapper;
 import mkoner.ads_dental_surgeries.mapper.SurgeryMapper;
 import mkoner.ads_dental_surgeries.model.Surgery;
 import mkoner.ads_dental_surgeries.repository.SurgeryRepository;
 import mkoner.ads_dental_surgeries.service.SurgeryService;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import java.util.List;

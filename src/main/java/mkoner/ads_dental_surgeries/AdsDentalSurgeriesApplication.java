@@ -82,14 +82,17 @@ public class AdsDentalSurgeriesApplication implements CommandLineRunner {
         appointmentService.saveAppointment(new AppointmentRequestDTO(LocalDateTime.of(2013, 9, 12, 12, 0), jillResponse.userId(), tonyResponse.userId(), s15Response.surgeryId(), AppointmentStatus.SCHEDULED));
         appointmentService.saveAppointment(new AppointmentRequestDTO(LocalDateTime.of(2013, 9, 12, 10, 0), ianResponse.userId(), helenResponse.userId(), s10Response.surgeryId(), AppointmentStatus.SCHEDULED));
         appointmentService.saveAppointment(new AppointmentRequestDTO(LocalDateTime.of(2013, 9, 14, 14, 0), ianResponse.userId(), helenResponse.userId(), s10Response.surgeryId(), AppointmentStatus.SCHEDULED));
-        appointmentService.saveAppointment(new AppointmentRequestDTO(LocalDateTime.of(2013, 9, 14, 16, 30), jillResponse.userId(), robinResponse.userId(), s15Response.surgeryId(), AppointmentStatus.SCHEDULED));
+        appointmentService.saveAppointment(new AppointmentRequestDTO(LocalDateTime.of(2013, 9, 10, 16, 30), jillResponse.userId(), robinResponse.userId(), s15Response.surgeryId(), AppointmentStatus.SCHEDULED));
         appointmentService.saveAppointment(new AppointmentRequestDTO(LocalDateTime.of(2013, 9, 15, 18, 0), johnResponse.userId(), robinResponse.userId(), s13Response.surgeryId(), AppointmentStatus.SCHEDULED));
+        appointmentService.saveAppointment(new AppointmentRequestDTO(LocalDateTime.of(2013, 9, 12, 10, 0), ianResponse.userId(), robinResponse.userId(), s13Response.surgeryId(), AppointmentStatus.SCHEDULED));
+        appointmentService.saveAppointment(new AppointmentRequestDTO(LocalDateTime.of(2013, 9, 13, 19, 0), johnResponse.userId(), robinResponse.userId(), s13Response.surgeryId(), AppointmentStatus.SCHEDULED));
+        appointmentService.saveAppointment(new AppointmentRequestDTO(LocalDateTime.of(2013, 9, 14, 18, 0), jillResponse.userId(), robinResponse.userId(), s13Response.surgeryId(), AppointmentStatus.SCHEDULED));
 
         System.out.println(apt1);
         var bill = appointmentService.generateBill(apt1.appointmentId(), new BillRequestDTO(new BigDecimal("234.85"), "USD", "$", LocalDate.of(2021, 7, 12)));
         System.out.println(bill);
 
-        var payment = appointmentService.makePayment(apt1.appointmentId(), new PaymentRequestDTO(new BigDecimal("234.85")));
+        var payment = appointmentService.makePayment(apt1.appointmentId(), new PaymentRequestDTO(new BigDecimal("104.85")));
         System.out.println(payment);
     }
 }

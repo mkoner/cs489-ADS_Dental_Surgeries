@@ -1,5 +1,7 @@
 package mkoner.ads_dental_surgeries.exception;
 
+import mkoner.ads_dental_surgeries.exception.custom_exception.BadRequestException;
+import mkoner.ads_dental_surgeries.exception.custom_exception.ResourceNotFoundException;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

@@ -2,14 +2,18 @@ package mkoner.ads_dental_surgeries.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import mkoner.ads_dental_surgeries.dto.appointment.AppointmentFilterDTO;
 import mkoner.ads_dental_surgeries.dto.appointment.AppointmentRequestDTO;
 import mkoner.ads_dental_surgeries.dto.appointment.AppointmentResponseDTO;
+import mkoner.ads_dental_surgeries.dto.appointment.RescheduleAppointmentDTO;
 import mkoner.ads_dental_surgeries.dto.bill.BillRequestDTO;
 import mkoner.ads_dental_surgeries.dto.bill.BillResponseDTO;
 import mkoner.ads_dental_surgeries.dto.payment.PaymentRequestDTO;
 import mkoner.ads_dental_surgeries.dto.payment.PaymentResponseDTO;
 import mkoner.ads_dental_surgeries.model.User;
 import mkoner.ads_dental_surgeries.service.AppointmentService;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -50,9 +54,17 @@ public class AppointmentController {
 
     @GetMapping
     @PreAuthorize("hasRole('OFFICE-MANAGER')")
-    public ResponseEntity<List<AppointmentResponseDTO>> getAllAppointments() {
-        return ResponseEntity.ok(appointmentService.getAllAppointments());
+    public ResponseEntity<?> getAppointments(
+            @ModelAttribute AppointmentFilterDTO filterDTO,
+            @RequestParam(defaultValue = "false") boolean fetchAll,
+            @PageableDefault(size = 10, sort = "dateTime") Pageable pageable
+    ) {
+        if(fetchAll) {
+            return ResponseEntity.ok(appointmentService.getAllAppointments());
+        }
+        return ResponseEntity.ok(appointmentService.getFilteredAppointments(filterDTO, pageable));
     }
+
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('OFFICE-MANAGER')")
@@ -70,16 +82,15 @@ public class AppointmentController {
 
     @PutMapping("/{id}/cancel")
     @PreAuthorize("hasAnyRole('OFFICE-MANAGER', 'PATIENT')")
-    public ResponseEntity<AppointmentResponseDTO> cancelAppointment(@PathVariable Long id,
-                                                                    @Valid @RequestBody AppointmentRequestDTO dto) {
-        return ResponseEntity.ok(appointmentService.updateAppointment(id, dto));
+    public ResponseEntity<String> cancelAppointment(@PathVariable Long id) {
+        return ResponseEntity.ok(appointmentService.cancelAppointment(id));
     }
 
     @PutMapping("/{id}/reschedule")
     @PreAuthorize("hasAnyRole('OFFICE-MANAGER', 'PATIENT')")
     public ResponseEntity<AppointmentResponseDTO> rescheduleAppointment(@PathVariable Long id,
-                                                                    @Valid @RequestBody AppointmentRequestDTO dto) {
-        return ResponseEntity.ok(appointmentService.updateAppointment(id, dto));
+                                                                    @Valid @RequestBody RescheduleAppointmentDTO dto) {
+        return ResponseEntity.ok(appointmentService.rescheduleAppointment(id, dto));
     }
 
     // Generate bill

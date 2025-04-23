@@ -7,6 +7,7 @@ import mkoner.ads_dental_surgeries.dto.surgery.SurgeryResponseDTO;
 import mkoner.ads_dental_surgeries.service.SurgeryService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,6 +20,7 @@ public class SurgeryController {
     private final SurgeryService surgeryService;
 
     @PostMapping
+    @PreAuthorize("hasRole('OFFICE-MANAGER')")
     public ResponseEntity<SurgeryResponseDTO> createSurgery(@Valid @RequestBody SurgeryRequestDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(surgeryService.saveSurgery(dto));
     }
@@ -34,11 +36,13 @@ public class SurgeryController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('OFFICE-MANAGER')")
     public ResponseEntity<SurgeryResponseDTO> updateSurgery(@PathVariable Long id, @Valid @RequestBody SurgeryRequestDTO dto) {
         return ResponseEntity.ok(surgeryService.updateSurgery(id, dto));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('OFFICE-MANAGER')")
     public ResponseEntity<Void> deleteSurgery(@PathVariable Long id) {
         surgeryService.deleteSurgery(id);
         return ResponseEntity.noContent().build();

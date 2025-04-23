@@ -8,15 +8,13 @@ import mkoner.ads_dental_surgeries.dto.dentist.DentistRequestDTO;
 import mkoner.ads_dental_surgeries.dto.patient.PatientRequestDTO;
 import mkoner.ads_dental_surgeries.dto.payment.PaymentRequestDTO;
 import mkoner.ads_dental_surgeries.dto.surgery.SurgeryRequestDTO;
+import mkoner.ads_dental_surgeries.dto.user.UserRequestDTO;
 import mkoner.ads_dental_surgeries.model.*;
 import mkoner.ads_dental_surgeries.repository.DentistRepository;
 import mkoner.ads_dental_surgeries.repository.PatientRepository;
 import mkoner.ads_dental_surgeries.repository.RoleRepository;
 import mkoner.ads_dental_surgeries.repository.SurgeryRepository;
-import mkoner.ads_dental_surgeries.service.AppointmentService;
-import mkoner.ads_dental_surgeries.service.DentistService;
-import mkoner.ads_dental_surgeries.service.PatientService;
-import mkoner.ads_dental_surgeries.service.SurgeryService;
+import mkoner.ads_dental_surgeries.service.*;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -33,7 +31,7 @@ public class AdsDentalSurgeriesApplication implements CommandLineRunner {
     private final DentistService dentistService;
     private final PatientService patientService;
     private final AppointmentService appointmentService;
-    private final RoleRepository roleRepository;
+    private final UserService userService;
 
     public static void main(String[] args) {
         SpringApplication.run(AdsDentalSurgeriesApplication.class, args);
@@ -41,6 +39,9 @@ public class AdsDentalSurgeriesApplication implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
+        var user = new UserRequestDTO("Admin", "Admin1", "1111765", "admin1@clinic.com", "pass", "OFFICE-MANAGER");
+        userService.createUser(user);
+
         var address1 = new AddressDTO("United States", "New York", "54332", "New York ST");
         var address2 = new AddressDTO("United States", "Fairfield", "5555", "fairfield ST");
         var address3 = new AddressDTO("Germany", "Munich", "12345", "Munich St");

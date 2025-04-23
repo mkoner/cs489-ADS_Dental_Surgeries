@@ -17,7 +17,7 @@ public class DentistMapper {
                 dentistRequestDTO.email(),
                 dentistRequestDTO.password(),
                 dentistRequestDTO.specialization(),
-                new Role("Dentist")
+                new Role("DENTIST")
         );
     }
     public DentistResponseDTO mapToDentistResponseDTO(Dentist dentist) {

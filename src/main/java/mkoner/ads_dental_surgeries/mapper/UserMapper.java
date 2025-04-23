@@ -11,7 +11,7 @@ public class UserMapper {
     public User mapToUser(UserRequestDTO userRequestDTO) {
         return new User(userRequestDTO.firstName(), userRequestDTO.lastName(),
                 userRequestDTO.phoneNumber(), userRequestDTO.email(),
-                userRequestDTO.password(), new Role(userRequestDTO.role()));
+                userRequestDTO.password(), new Role(userRequestDTO.role().toUpperCase()));
     }
     public UserResponseDTO mapToUserResponseDTO(User user) {
         return new UserResponseDTO(

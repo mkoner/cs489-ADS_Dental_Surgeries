@@ -4,13 +4,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.RequiredArgsConstructor;
-import mkoner.ads_dental_surgeries.exception.ResourceNotFoundException;
 import mkoner.ads_dental_surgeries.model.User;
 import mkoner.ads_dental_surgeries.repository.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -28,28 +28,30 @@ public class ApplicationConfiguration {
         return new BCryptPasswordEncoder();
     }
 
+
 //    @Bean
 //    public UserDetailsService userDetailsService() {
-//        return username ->
-//                userRepository.findByEmailAddress(username).
-//                        orElseGet(() -> userRepository.findByPhoneNumber(username).
-//                                orElseThrow(() -> new ResourceNotFoundException("No user found")));
+//        return username -> {
+//            var user = userRepository.findByEmailAddress(username)
+//                    .orElseGet(() -> userRepository.findByPhoneNumber(username)
+//                            .orElseThrow(() -> new BadCredentialsException("")));
+//
+////            return org.springframework.security.core.userdetails.User.builder()
+////                    .username(user.getEmailAddress()) // or phoneNumber
+////                    .password(user.getPassword())
+////                    .authorities(user.getAuthorities()) // e.g., "ADMIN"
+////                    .build();
+//            return (User) user;
+//        };
 //    }
 
     @Bean
     public UserDetailsService userDetailsService() {
-        return username -> {
-            var user = userRepository.findByEmailAddress(username)
-                    .orElseGet(() -> userRepository.findByPhoneNumber(username)
-                            .orElseThrow(() -> new ResourceNotFoundException("No user found")));
-
-            return org.springframework.security.core.userdetails.User.builder()
-                    .username(user.getEmailAddress()) // or phoneNumber
-                    .password(user.getPassword())
-                    .authorities(user.getAuthorities()) // e.g., "ADMIN"
-                    .build();
-        };
+        return username -> userRepository.findByEmailAddress(username)
+                .orElseGet(() -> userRepository.findByPhoneNumber(username)
+                        .orElseThrow(() -> new BadCredentialsException("Invalid credentials")));
     }
+
 
 
     @Bean

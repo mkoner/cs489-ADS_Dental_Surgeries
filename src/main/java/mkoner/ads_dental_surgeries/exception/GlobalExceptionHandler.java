@@ -1,54 +1,16 @@
 package mkoner.ads_dental_surgeries.exception;
 
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.SignatureException;
-import io.jsonwebtoken.UnsupportedJwtException;
-import org.hibernate.exception.ConstraintViolationException;
-import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
 import java.time.Instant;
-import java.util.List;
 
 @ControllerAdvice
+@Order(3)
 public class GlobalExceptionHandler {
-
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ValidationErrorResponse> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        List<String> messages = ex.getBindingResult()
-                .getFieldErrors()
-                .stream()
-                .map(error -> error.getField() + ": " + error.getDefaultMessage())
-                .toList();
-        var response = new ValidationErrorResponse(
-                Instant.now(),
-                HttpStatus.BAD_REQUEST.value(),
-                "Validation Error",
-                messages
-        );
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
-                response
-        );
-    }
-
-    @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<ErrorResponse> handleDateIntegrityException(ConstraintViolationException ex) {
-        String message = ex.getMessage().substring(ex.getMessage().indexOf("[") + 1, ex.getMessage().indexOf("]"));
-        var response = new ErrorResponse(
-                Instant.now(),
-                HttpStatus.BAD_REQUEST.value(),
-                "Data Integrity Violation",
-                message
-        );
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
-                response
-        );
-    }
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<?> handleResourceNotFound(ResourceNotFoundException ex) {

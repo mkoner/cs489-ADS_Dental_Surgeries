@@ -19,7 +19,7 @@ public class PatientMapper {
                 patientRequestDTO.email(),
                 patientRequestDTO.password(),
                 patientRequestDTO.dateOfBirth(),
-                new Role("Patient")
+                new Role("PATIENT")
         );
         patient.setAddress(addressMapper.mapToAddress(patientRequestDTO.address()));
         return patient;

@@ -10,6 +10,8 @@ import mkoner.ads_dental_surgeries.mapper.SurgeryMapper;
 import mkoner.ads_dental_surgeries.model.Surgery;
 import mkoner.ads_dental_surgeries.repository.SurgeryRepository;
 import mkoner.ads_dental_surgeries.service.SurgeryService;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -42,7 +44,17 @@ public class SurgeryServiceImpl implements SurgeryService {
     }
 
     public void deleteSurgery(Long id) {
-        surgeryRepository.deleteById(id);
+        try{
+            surgeryRepository.deleteById(id);
+        }
+        catch (DataIntegrityViolationException e) {
+            System.out.println(e);
+            throw new BadRequestException("Deletion failed due to associated records");
+        }
+        catch (Exception e){
+            System.out.println(e);
+            throw new BadRequestException("Deletion failed");
+        }
     }
 
     public List<SurgeryResponseDTO> findByCity(String city) {

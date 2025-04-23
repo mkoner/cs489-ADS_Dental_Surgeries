@@ -15,7 +15,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.time.Instant;
 
-import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 

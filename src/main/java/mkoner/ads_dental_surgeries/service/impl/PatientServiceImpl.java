@@ -8,19 +8,18 @@ import mkoner.ads_dental_surgeries.exception.BadRequestException;
 import mkoner.ads_dental_surgeries.exception.ResourceNotFoundException;
 import mkoner.ads_dental_surgeries.mapper.AddressMapper;
 import mkoner.ads_dental_surgeries.mapper.PatientMapper;
-import mkoner.ads_dental_surgeries.model.Dentist;
 import mkoner.ads_dental_surgeries.model.Patient;
 import mkoner.ads_dental_surgeries.model.Role;
 import mkoner.ads_dental_surgeries.repository.PatientRepository;
 import mkoner.ads_dental_surgeries.repository.RoleRepository;
 import mkoner.ads_dental_surgeries.repository.UserRepository;
 import mkoner.ads_dental_surgeries.service.PatientService;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -65,7 +64,17 @@ public class PatientServiceImpl implements PatientService {
     }
 
     public void deletePatient(Long id) {
-        patientRepository.deleteById(id);
+        try{
+            patientRepository.deleteById(id);
+        }
+        catch (DataIntegrityViolationException e) {
+            System.out.println(e);
+            throw new BadRequestException("Deletion failed due to associated records");
+        }
+        catch (Exception e){
+            System.out.println(e);
+            throw new BadRequestException("Deletion failed");
+        }
     }
 
     @Override

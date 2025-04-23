@@ -3,6 +3,7 @@ package mkoner.ads_dental_surgeries.service.impl;
 import lombok.RequiredArgsConstructor;
 import mkoner.ads_dental_surgeries.dto.appointment.AppointmentRequestDTO;
 import mkoner.ads_dental_surgeries.dto.appointment.AppointmentResponseDTO;
+import mkoner.ads_dental_surgeries.dto.appointment.RescheduleAppointmentDTO;
 import mkoner.ads_dental_surgeries.dto.bill.BillRequestDTO;
 import mkoner.ads_dental_surgeries.dto.bill.BillResponseDTO;
 import mkoner.ads_dental_surgeries.dto.payment.PaymentRequestDTO;
@@ -18,6 +19,7 @@ import mkoner.ads_dental_surgeries.repository.DentistRepository;
 import mkoner.ads_dental_surgeries.repository.PatientRepository;
 import mkoner.ads_dental_surgeries.repository.SurgeryRepository;
 import mkoner.ads_dental_surgeries.service.AppointmentService;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -55,9 +57,16 @@ public class AppointmentServiceImpl implements AppointmentService {
                         .orElseThrow(() -> new ResourceNotFoundException("Dentist with id " + dentistId + " not found"));
         Surgery surgery = surgeryRepository.findById(surgeryId).
                 orElseThrow(() -> new ResourceNotFoundException("Surgery with id " + surgeryId + " not found"));
+        AppointmentStatus status;
+        if(isOfficeManager()){
+            status = AppointmentStatus.SCHEDULED;
+        }
+        else{
+            status = AppointmentStatus.REQUESTED;
+        }
         Appointment appointment = new Appointment(
                 appointmentRequestDTO.dateTime(),
-                appointmentRequestDTO.status(),
+                status,
                 patient,
                 dentist,
                 surgery
@@ -134,6 +143,39 @@ public class AppointmentServiceImpl implements AppointmentService {
         existingAppointment.setDateTime(appointmentRequestDTO.dateTime());
         existingAppointment.setStatus(appointmentRequestDTO.status());
         return appointmentMapper.mapToAppointmentResponseDTO(appointmentRepository.save(existingAppointment));
+    }
+    @Override
+    public AppointmentResponseDTO rescheduleAppointment(Long id, RescheduleAppointmentDTO dto) {
+        Appointment appointment = appointmentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
+
+        appointment.setDateTime(dto.newDateTime());
+        if (isOfficeManager()) {
+            appointment.setStatus(AppointmentStatus.RESCHEDULED);
+        } else {
+            appointment.setStatus(AppointmentStatus.RESCHEDULE_REQUESTED);
+        }
+        Appointment updated = appointmentRepository.save(appointment);
+
+        return appointmentMapper.mapToAppointmentResponseDTO(updated);
+    }
+    @Override
+    public void cancelAppointment(Long id) {
+        Appointment appointment = appointmentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
+
+        if (isOfficeManager()) {
+            appointment.setStatus(AppointmentStatus.CANCELLED);
+        } else {
+            appointment.setStatus(AppointmentStatus.CANCELLATION_REQUESTED);
+        }
+
+        appointmentRepository.save(appointment);
+    }
+
+    private boolean isOfficeManager() {
+        return SecurityContextHolder.getContext().getAuthentication() != null && SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals("ROLE_" + "OFFICE-MANAGER"));
     }
 }
 

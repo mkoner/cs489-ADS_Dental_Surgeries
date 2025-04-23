@@ -14,6 +14,7 @@ import mkoner.ads_dental_surgeries.repository.DentistRepository;
 import mkoner.ads_dental_surgeries.repository.RoleRepository;
 import mkoner.ads_dental_surgeries.repository.UserRepository;
 import mkoner.ads_dental_surgeries.service.DentistService;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,7 +63,17 @@ public class DentistServiceImpl implements DentistService {
     }
 
     public void deleteDentist(Long id) {
-        dentistRepository.deleteById(id);
+        try{
+            dentistRepository.deleteById(id);
+        }
+        catch (DataIntegrityViolationException e) {
+            System.out.println(e);
+            throw new BadRequestException("Deletion failed due to associated records");
+        }
+        catch (Exception e){
+            System.out.println(e);
+            throw new BadRequestException("Deletion failed");
+        }
     }
 
     @Override

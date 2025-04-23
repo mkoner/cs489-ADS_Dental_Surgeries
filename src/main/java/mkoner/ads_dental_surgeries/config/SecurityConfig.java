@@ -1,6 +1,7 @@
 package mkoner.ads_dental_surgeries.config;
 
 import lombok.RequiredArgsConstructor;
+import mkoner.ads_dental_surgeries.exception.AuthExceptionHandler;
 import mkoner.ads_dental_surgeries.exception.JwtAccessDeniedHandler;
 import mkoner.ads_dental_surgeries.exception.JwtAuthenticationEntryPoint;
 import org.springframework.context.annotation.Bean;

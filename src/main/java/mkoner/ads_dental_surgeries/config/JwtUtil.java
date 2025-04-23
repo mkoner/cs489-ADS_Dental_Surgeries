@@ -19,7 +19,7 @@ public class JwtUtil {
     @Value("${jwt.secretKey}")
     private String SECRET;
 
-    private long VALIDITY = 10 * 60 * 1000;
+    private final long VALIDITY = 60 * 60 * 1000;
 
     public String generateToken(UserDetails userDetails) {
         return Jwts.builder()

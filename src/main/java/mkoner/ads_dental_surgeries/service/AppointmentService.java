@@ -2,6 +2,7 @@ package mkoner.ads_dental_surgeries.service;
 
 import mkoner.ads_dental_surgeries.dto.appointment.AppointmentRequestDTO;
 import mkoner.ads_dental_surgeries.dto.appointment.AppointmentResponseDTO;
+import mkoner.ads_dental_surgeries.dto.appointment.RescheduleAppointmentDTO;
 import mkoner.ads_dental_surgeries.dto.bill.BillRequestDTO;
 import mkoner.ads_dental_surgeries.dto.bill.BillResponseDTO;
 import mkoner.ads_dental_surgeries.dto.payment.PaymentRequestDTO;
@@ -22,5 +23,7 @@ public interface AppointmentService {
     BillResponseDTO generateBill(Long appointmentId, BillRequestDTO billRequestDTO);
     PaymentResponseDTO makePayment(Long appointmentId, PaymentRequestDTO paymentRequestDTO);
     AppointmentResponseDTO updateAppointment(Long appointmentId, AppointmentRequestDTO appointmentRequestDTO);
+    AppointmentResponseDTO rescheduleAppointment(Long appointmentId, RescheduleAppointmentDTO rescheduleAppointmentDTO);
+    void cancelAppointment(Long appointmentId);
 }
 

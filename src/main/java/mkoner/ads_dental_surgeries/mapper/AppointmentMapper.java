@@ -12,9 +12,8 @@ public class AppointmentMapper {
     private final PatientMapper patientMapper;
     private final SurgeryMapper surgeryMapper;;
     private final  BillMapper billMapper;
-    public Appointment mapToAppointment(AppointmentResponseDTO appointmentResponseDTO) {
-        return new Appointment();
-    }
+
+
     public AppointmentResponseDTO mapToAppointmentResponseDTO(Appointment appointment) {
         return new AppointmentResponseDTO(
                 appointment.getAppointmentId(),

@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 
 public record AppointmentRequestDTO(
         //@NotNull(message = "Appointment date time is required")
-        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
+        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm")
         LocalDateTime dateTime,
         @NotNull(message = "Patient id is required")
         Long patientId,

@@ -5,6 +5,7 @@ import mkoner.ads_dental_surgeries.exception.custom_exception.ResourceNotFoundEx
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
@@ -40,6 +41,19 @@ public class GlobalExceptionHandler {
         );
     }
 
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<?> handleMethodNotSupportedException(HttpRequestMethodNotSupportedException ex) {
+        var response = new ErrorResponse(
+                Instant.now(),
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                "Method not supported",
+                "Method not supported at this endpoint."
+        );
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(
+                response
+        );
+    }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleGenericException(Exception ex) {

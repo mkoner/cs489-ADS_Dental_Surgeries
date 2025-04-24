@@ -24,7 +24,9 @@ import mkoner.ads_dental_surgeries.service.AppointmentService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +34,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -171,7 +174,12 @@ public class AppointmentServiceImpl implements AppointmentService {
     public AppointmentResponseDTO rescheduleAppointment(Long id, RescheduleAppointmentDTO dto) {
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
-
+        if(!isLoggedUserAuthorizedToPerformAction(appointment.getPatient().getEmailAddress())){
+            throw new AccessDeniedException("You are not authorized to reschedule this appointment.");
+        }
+        if(!validateRescheduleStatus(appointment.getStatus())){
+            throw new BadRequestException("Cannot reschedule an appointment at this status: " + appointment.getStatus());
+        }
         appointment.setDateTime(dto.newDateTime());
         if (isOfficeManager()) {
             appointment.setStatus(AppointmentStatus.RESCHEDULED);
@@ -190,6 +198,12 @@ public class AppointmentServiceImpl implements AppointmentService {
     public String cancelAppointment(Long id) {
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
+        if(!isLoggedUserAuthorizedToPerformAction(appointment.getPatient().getEmailAddress())){
+            throw new AccessDeniedException("You are not authorized to cancel this appointment.");
+        }
+        if(!validateCancellationStatus(appointment.getStatus())){
+            throw new BadRequestException("Cannot cancel an appointment at this state: " + appointment.getStatus());
+        }
         String message = "";
         if (isOfficeManager()) {
             appointment.setStatus(AppointmentStatus.CANCELLED);
@@ -257,5 +271,40 @@ public class AppointmentServiceImpl implements AppointmentService {
         return existingAppointments >= 5;
     }
 
+    private boolean validateRescheduleStatus(AppointmentStatus status) {
+
+        EnumSet<AppointmentStatus> ALLOWED_RESCHEDULE_STATUSES = EnumSet.of(
+                AppointmentStatus.REQUESTED,
+                AppointmentStatus.SCHEDULED,
+                AppointmentStatus.CANCELLATION_REQUESTED,
+                AppointmentStatus.RESCHEDULE_REQUESTED
+        );
+        return ALLOWED_RESCHEDULE_STATUSES.contains(status);
+    }
+
+    private boolean validateCancellationStatus(AppointmentStatus status) {
+        EnumSet<AppointmentStatus> ALLOWED_CANCELLATION_STATUSES = EnumSet.of(
+                AppointmentStatus.REQUESTED,
+                AppointmentStatus.SCHEDULED,
+                AppointmentStatus.RESCHEDULE_REQUESTED,
+                AppointmentStatus.RESCHEDULED
+        );
+        return ALLOWED_CANCELLATION_STATUSES.contains(status);
+    }
+
+    private boolean isLoggedUserAuthorizedToPerformAction(String patientEmail) {
+        if(isOfficeManager()){
+            return true;
+        }
+        String loggedInUserEmail;
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (principal instanceof UserDetails userDetails) {
+            loggedInUserEmail = userDetails.getUsername(); // usually the email
+        }
+        else {
+            loggedInUserEmail = principal.toString();
+        }
+        return loggedInUserEmail.equals(patientEmail);
+    }
 }
 

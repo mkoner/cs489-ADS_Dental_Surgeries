@@ -2,6 +2,7 @@ package mkoner.ads_dental_surgeries.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import mkoner.ads_dental_surgeries.dto.MessageResponseDTO;
 import mkoner.ads_dental_surgeries.dto.appointment.AppointmentFilterDTO;
 import mkoner.ads_dental_surgeries.dto.appointment.AppointmentRequestDTO;
 import mkoner.ads_dental_surgeries.dto.appointment.AppointmentResponseDTO;
@@ -82,8 +83,9 @@ public class AppointmentController {
 
     @PutMapping("/{id}/cancel")
     @PreAuthorize("hasAnyRole('OFFICE-MANAGER', 'PATIENT')")
-    public ResponseEntity<String> cancelAppointment(@PathVariable Long id) {
-        return ResponseEntity.ok(appointmentService.cancelAppointment(id));
+    public ResponseEntity<?> cancelAppointment(@PathVariable Long id) {
+        String message = appointmentService.cancelAppointment(id);
+        return ResponseEntity.ok(new MessageResponseDTO(message));
     }
 
     @PutMapping("/{id}/reschedule")

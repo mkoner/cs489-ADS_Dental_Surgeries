@@ -2,6 +2,7 @@ package mkoner.ads_dental_surgeries.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import mkoner.ads_dental_surgeries.dto.MessageResponseDTO;
 import mkoner.ads_dental_surgeries.dto.auth.LoginRequest;
 import mkoner.ads_dental_surgeries.dto.dentist.DentistRequestDTO;
 import mkoner.ads_dental_surgeries.dto.dentist.DentistResponseDTO;
@@ -27,10 +28,14 @@ public class AuthController {
     private final PatientService patientService;
 
     @PostMapping("/login")
-    public String login(@Valid @RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest loginRequest) {
         String token = authService.authenticate(loginRequest);
-        return token;
+
+        return ResponseEntity.ok()
+                .header("X-Auth-Token", token)
+                .body(new MessageResponseDTO("Login successful"));
     }
+
 
     @PostMapping("/dentists/register")
     public ResponseEntity<DentistResponseDTO> registerDentist(@Valid @RequestBody DentistRequestDTO dentistRequestDTO) {

@@ -62,11 +62,6 @@ public class SurgeryServiceImpl implements SurgeryService {
         }
     }
 
-    public List<SurgeryResponseDTO> findByCity(String city) {
-        return surgeryRepository.findSurgeriesByAddressCityIgnoreCase(city).stream()
-                .map(surgeryMapper::mapToSurgeryResponseDTO)
-                .collect(Collectors.toList());
-    }
 
     @Override
     public SurgeryResponseDTO updateSurgery(Long id, SurgeryRequestDTO surgeryRequestDTO) {

@@ -13,7 +13,6 @@ public interface SurgeryService {
     SurgeryResponseDTO getSurgeryById(Long id);
     SurgeryResponseDTO saveSurgery(SurgeryRequestDTO surgery);
     void deleteSurgery(Long id);
-    List<SurgeryResponseDTO> findByCity(String city);
     SurgeryResponseDTO updateSurgery(Long id, SurgeryRequestDTO surgery);
     Page<SurgeryResponseDTO> getFilteredSurgeriesWithPagination(SurgeryFilterDTO surgeryFilterDTO, Pageable pageable);
 }

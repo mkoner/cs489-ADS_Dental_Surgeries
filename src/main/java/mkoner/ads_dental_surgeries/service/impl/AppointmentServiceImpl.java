@@ -34,7 +34,6 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -177,18 +176,15 @@ public class AppointmentServiceImpl implements AppointmentService {
         if(!isLoggedUserAuthorizedToPerformAction(appointment.getPatient().getEmailAddress())){
             throw new AccessDeniedException("You are not authorized to reschedule this appointment.");
         }
-        if(!validateRescheduleStatus(appointment.getStatus())){
-            throw new BadRequestException("Cannot reschedule an appointment at this status: " + appointment.getStatus());
-        }
-        appointment.setDateTime(dto.newDateTime());
+
         if (isOfficeManager()) {
-            appointment.setStatus(AppointmentStatus.RESCHEDULED);
             //Check if dentist has more than 5 appointments
             if(appointment.getDentist() != null && dentistExceedsAppointmentLimit(appointment.getDentist().getUserId(), LocalDate.from(dto.newDateTime()))){
                 throw new BadRequestException("Dentist already has 5 appointments this week.");
             }
+            appointment.reschedule(dto.newDateTime(), AppointmentStatus.RESCHEDULED);
         } else {
-            appointment.setStatus(AppointmentStatus.RESCHEDULE_REQUESTED);
+            appointment.reschedule(dto.newDateTime(), AppointmentStatus.RESCHEDULE_REQUESTED);
         }
         Appointment updated = appointmentRepository.save(appointment);
 
@@ -201,15 +197,12 @@ public class AppointmentServiceImpl implements AppointmentService {
         if(!isLoggedUserAuthorizedToPerformAction(appointment.getPatient().getEmailAddress())){
             throw new AccessDeniedException("You are not authorized to cancel this appointment.");
         }
-        if(!validateCancellationStatus(appointment.getStatus())){
-            throw new BadRequestException("Cannot cancel an appointment at this state: " + appointment.getStatus());
-        }
         String message = "";
         if (isOfficeManager()) {
-            appointment.setStatus(AppointmentStatus.CANCELLED);
+            appointment.cancel(AppointmentStatus.CANCELLED);
             message = "Appointment: " + id + " has been cancelled";
         } else {
-            appointment.setStatus(AppointmentStatus.CANCELLATION_REQUESTED);
+            appointment.cancel(AppointmentStatus.CANCELLATION_REQUESTED);
             message = "Cancellation request for Appointment: " + id + " succeeded";
         }
 
@@ -269,27 +262,6 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .countAppointmentsForDentistInWeek(dentistId, startDateTime, endDateTime);
 
         return existingAppointments >= 5;
-    }
-
-    private boolean validateRescheduleStatus(AppointmentStatus status) {
-
-        EnumSet<AppointmentStatus> ALLOWED_RESCHEDULE_STATUSES = EnumSet.of(
-                AppointmentStatus.REQUESTED,
-                AppointmentStatus.SCHEDULED,
-                AppointmentStatus.CANCELLATION_REQUESTED,
-                AppointmentStatus.RESCHEDULE_REQUESTED
-        );
-        return ALLOWED_RESCHEDULE_STATUSES.contains(status);
-    }
-
-    private boolean validateCancellationStatus(AppointmentStatus status) {
-        EnumSet<AppointmentStatus> ALLOWED_CANCELLATION_STATUSES = EnumSet.of(
-                AppointmentStatus.REQUESTED,
-                AppointmentStatus.SCHEDULED,
-                AppointmentStatus.RESCHEDULE_REQUESTED,
-                AppointmentStatus.RESCHEDULED
-        );
-        return ALLOWED_CANCELLATION_STATUSES.contains(status);
     }
 
     private boolean isLoggedUserAuthorizedToPerformAction(String patientEmail) {

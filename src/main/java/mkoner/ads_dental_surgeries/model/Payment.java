@@ -24,13 +24,5 @@ public class Payment {
     @JoinColumn(name = "bill_id")
     private Bill bill;
 
-    public Payment(Money amount, Bill bill) {
-        if(bill == null){
-            throw new IllegalArgumentException("bill is null");
-        }
-        this.amount = amount;
-        this.bill = bill;
-        this.dateTimeOfPayment = LocalDateTime.now();
-    }
 }
 

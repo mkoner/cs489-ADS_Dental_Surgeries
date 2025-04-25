@@ -2,6 +2,7 @@ package mkoner.ads_dental_surgeries.exception;
 
 import mkoner.ads_dental_surgeries.exception.custom_exception.BadRequestException;
 import mkoner.ads_dental_surgeries.exception.custom_exception.ResourceNotFoundException;
+import mkoner.ads_dental_surgeries.exception.domain_exception.DomainException;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +31,19 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<?> handleBadRequest(BadRequestException ex) {
+        var response = new ErrorResponse(
+                Instant.now(),
+                HttpStatus.BAD_REQUEST.value(),
+                "Bad Request",
+                ex.getMessage()
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                response
+        );
+    }
+
+    @ExceptionHandler(DomainException.class)
+    public ResponseEntity<?> handleBadRequest(DomainException ex) {
         var response = new ErrorResponse(
                 Instant.now(),
                 HttpStatus.BAD_REQUEST.value(),

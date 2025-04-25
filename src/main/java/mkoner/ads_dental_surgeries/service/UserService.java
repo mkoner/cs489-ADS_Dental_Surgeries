@@ -15,11 +15,8 @@ import java.util.Optional;
 public interface UserService {
     UserResponseDTO findUserById(Long id);
     List<UserResponseDTO> getAllUsers();
-    UserResponseDTO findByEmail(String email);
     UserResponseDTO createUser(UserRequestDTO UserRequestDTO);
     void deleteUser(Long id);
-    Role createOrUpdateRole(String roleName);
-    List<Role> getAllRoles();
     UserResponseDTO updateUser(Long id, UserUpdateDTO userUpdateDTO);
     Page<UserResponseDTO> getFilteredUsersWithPagination(UserFilterDTO filterDTO, Pageable pageable);
 }

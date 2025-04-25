@@ -24,7 +24,9 @@ import mkoner.ads_dental_surgeries.service.AppointmentService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -171,16 +173,18 @@ public class AppointmentServiceImpl implements AppointmentService {
     public AppointmentResponseDTO rescheduleAppointment(Long id, RescheduleAppointmentDTO dto) {
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
+        if(!isLoggedUserAuthorizedToPerformAction(appointment.getPatient().getEmailAddress())){
+            throw new AccessDeniedException("You are not authorized to reschedule this appointment.");
+        }
 
-        appointment.setDateTime(dto.newDateTime());
         if (isOfficeManager()) {
-            appointment.setStatus(AppointmentStatus.RESCHEDULED);
             //Check if dentist has more than 5 appointments
             if(appointment.getDentist() != null && dentistExceedsAppointmentLimit(appointment.getDentist().getUserId(), LocalDate.from(dto.newDateTime()))){
                 throw new BadRequestException("Dentist already has 5 appointments this week.");
             }
+            appointment.reschedule(dto.newDateTime(), AppointmentStatus.RESCHEDULED);
         } else {
-            appointment.setStatus(AppointmentStatus.RESCHEDULE_REQUESTED);
+            appointment.reschedule(dto.newDateTime(), AppointmentStatus.RESCHEDULE_REQUESTED);
         }
         Appointment updated = appointmentRepository.save(appointment);
 
@@ -190,12 +194,15 @@ public class AppointmentServiceImpl implements AppointmentService {
     public String cancelAppointment(Long id) {
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
+        if(!isLoggedUserAuthorizedToPerformAction(appointment.getPatient().getEmailAddress())){
+            throw new AccessDeniedException("You are not authorized to cancel this appointment.");
+        }
         String message = "";
         if (isOfficeManager()) {
-            appointment.setStatus(AppointmentStatus.CANCELLED);
+            appointment.cancel(AppointmentStatus.CANCELLED);
             message = "Appointment: " + id + " has been cancelled";
         } else {
-            appointment.setStatus(AppointmentStatus.CANCELLATION_REQUESTED);
+            appointment.cancel(AppointmentStatus.CANCELLATION_REQUESTED);
             message = "Cancellation request for Appointment: " + id + " succeeded";
         }
 
@@ -257,5 +264,19 @@ public class AppointmentServiceImpl implements AppointmentService {
         return existingAppointments >= 5;
     }
 
+    private boolean isLoggedUserAuthorizedToPerformAction(String patientEmail) {
+        if(isOfficeManager()){
+            return true;
+        }
+        String loggedInUserEmail;
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (principal instanceof UserDetails userDetails) {
+            loggedInUserEmail = userDetails.getUsername(); // usually the email
+        }
+        else {
+            loggedInUserEmail = principal.toString();
+        }
+        return loggedInUserEmail.equals(patientEmail);
+    }
 }
 

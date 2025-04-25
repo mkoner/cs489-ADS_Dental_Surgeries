@@ -41,11 +41,6 @@ public class UserServiceImpl implements UserService {
         return userMapper.mapToUserResponseDTO(user);
     }
 
-    public UserResponseDTO findByEmail(String email) {
-        var user = userRepository.findByEmailAddress(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User with email " + email + " not found"));
-        return userMapper.mapToUserResponseDTO(user);
-    }
 
     public List<UserResponseDTO> getAllUsers() {
 
@@ -87,16 +82,6 @@ public class UserServiceImpl implements UserService {
             System.out.println(e);
             throw new BadRequestException("Deletion failed");
         }
-    }
-
-    @Transactional
-    public Role createOrUpdateRole(String roleName) {
-        return roleRepository.findByRoleName(roleName)
-                .orElseGet(() -> roleRepository.save(new Role(roleName)));
-    }
-
-    public List<Role> getAllRoles() {
-        return roleRepository.findAll();
     }
 
     @Override

@@ -8,7 +8,5 @@ import java.util.List;
 import java.util.Optional;
 
 public interface SurgeryRepository extends JpaRepository<Surgery, Long>, JpaSpecificationExecutor<Surgery> {
-    List<Surgery> findSurgeriesByAddressCityIgnoreCase(String city);
-    Optional<Surgery> findByPhoneNumber(String phoneNumber);
 }
 

@@ -7,7 +7,5 @@ import java.time.LocalDate;
 import java.util.List;
 
 public interface BillRepository extends JpaRepository<Bill, Long> {
-    List<Bill> findByAppointmentAppointmentId(Long appointmentId);
-    List<Bill> findByDueDateBefore(LocalDate date);
 }
 

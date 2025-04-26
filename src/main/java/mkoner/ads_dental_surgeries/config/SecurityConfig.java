@@ -30,15 +30,18 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
-        final String[] PUBLIC_URLS_FOR_POST = {"api/patients"};
         final String[] PUBLIC_URLS_FOR_GET = {"/api/surgeries/**"};
 
         http.csrf(CsrfConfigurer::disable)
                 .authorizeHttpRequests(
                         authorizeRequests ->
                                 authorizeRequests
-                                        .requestMatchers("/api/auth/**").permitAll()
-                                        .requestMatchers(HttpMethod.POST, PUBLIC_URLS_FOR_POST).permitAll()
+                                        .requestMatchers(
+                                                "/api/auth/**",
+                                                "/v3/api-docs/**",
+                                                "/swagger-ui/**",
+                                                "/swagger-ui.html"
+                                        ).permitAll()
                                         .requestMatchers(HttpMethod.GET, PUBLIC_URLS_FOR_GET).permitAll()
                                         .anyRequest().authenticated()
                 )

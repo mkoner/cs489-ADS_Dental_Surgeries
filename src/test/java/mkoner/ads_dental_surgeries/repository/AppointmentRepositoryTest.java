@@ -57,7 +57,7 @@ class AppointmentRepositoryTest {
         var result = appointmentRepository.findByPatientUserId(patient.getUserId());
 
         assertThat(result).hasSize(1);
-        assertThat(result.getFirst().getPatient().getUserId()).isEqualTo(patient.getUserId());
+        assertThat(result.get(0).getPatient().getUserId()).isEqualTo(patient.getUserId());
     }
 
     @Test
@@ -69,7 +69,7 @@ class AppointmentRepositoryTest {
         var result = appointmentRepository.findByDentistUserId(dentist.getUserId());
 
         assertThat(result).hasSize(1);
-        assertThat(result.getFirst().getDentist().getUserId()).isEqualTo(dentist.getUserId());
+        assertThat(result.get(0).getDentist().getUserId()).isEqualTo(dentist.getUserId());
     }
 
     @Test
@@ -81,7 +81,7 @@ class AppointmentRepositoryTest {
         var result = appointmentRepository.findByStatus(AppointmentStatus.CANCELLED);
 
         assertThat(result).hasSize(1);
-        assertThat(result.getFirst().getStatus()).isEqualTo(AppointmentStatus.CANCELLED);
+        assertThat(result.get(0).getStatus()).isEqualTo(AppointmentStatus.CANCELLED);
     }
 
     @Test

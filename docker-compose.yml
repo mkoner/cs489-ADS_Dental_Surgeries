@@ -1,4 +1,5 @@
 version: '3.8'
+<<<<<<< HEAD
 
 services:
   mysql-db:
@@ -33,3 +34,38 @@ services:
 
 networks:
   ads-network:
+=======
+services:
+  mysql:
+    image: 'mysql:latest'
+    environment:
+      - 'MYSQL_DATABASE=ads_dental_surgeries'
+      - 'MYSQL_PASSWORD=pass'
+      - 'MYSQL_ROOT_PASSWORD=Rootpass'
+      - 'MYSQL_USER=user'
+    ports:
+      - '3307:3306'
+    healthcheck: #Ensures that the MySQL service is fully ready before the web service starts
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 10s #The health check runs every 10 seconds.
+      timeout: 5s #Each health check must complete within 5 seconds.
+      retries: 3 #Docker will retry the health check 3 times before marking the service as unhealthy.
+      start_period: 10s
+  ads-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ads-api
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/ads_dental_surgeries
+      SPRING_DATASOURCE_USERNAME: user
+      SPRING_DATASOURCE_PASSWORD: pass
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQLDialect
+    networks:
+      - ads-net
+
+networks:
+  ads-net:
+>>>>>>> ab04d687b914c7d32a8f9a4aed3eeb54d20eed42

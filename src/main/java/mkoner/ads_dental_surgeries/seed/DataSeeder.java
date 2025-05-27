@@ -80,11 +80,11 @@ public class DataSeeder implements CommandLineRunner {
         appointmentService.saveAppointment(new AppointmentRequestDTO(LocalDateTime.of(2013, 9, 13, 19, 0), johnResponse.userId(), robinResponse.userId(), s13Response.surgeryId(), AppointmentStatus.SCHEDULED));
         appointmentService.saveAppointment(new AppointmentRequestDTO(LocalDateTime.of(2013, 9, 14, 18, 0), jillResponse.userId(), robinResponse.userId(), s13Response.surgeryId(), AppointmentStatus.SCHEDULED));
 
-        System.out.println(apt1);
+        //System.out.println(apt1);
         var bill = appointmentService.generateBill(apt1.appointmentId(), new BillRequestDTO(new BigDecimal("234.85"), "USD", "$", LocalDate.of(2021, 7, 12)));
-        System.out.println(bill);
+        //System.out.println(bill);
 
         var payment = appointmentService.makePayment(apt1.appointmentId(), new PaymentRequestDTO(new BigDecimal("104.85")));
-        System.out.println(payment);
+        //System.out.println(payment);
     }
 }

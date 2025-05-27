@@ -1,5 +1,10 @@
 package mkoner.ads_dental_surgeries.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import mkoner.ads_dental_surgeries.dto.MessageResponseDTO;
@@ -23,7 +28,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/appointments")
@@ -32,14 +36,41 @@ public class AppointmentController {
 
     private final AppointmentService appointmentService;
 
+    @Operation(
+            summary = "Create a new appointment",
+            description = "Only OFFICE-MANAGER or patient role can create a new appointment",
+            responses = {
+                    @ApiResponse(responseCode = "201", description = "appointment created"),
+                    @ApiResponse(responseCode = "400", description = "Invalid input"),
+                    @ApiResponse(responseCode = "401", description = "Not authenticated"),
+                    @ApiResponse(responseCode = "403", description = "Not authorized")
+            }
+    )
     @PostMapping
     @PreAuthorize("hasAnyRole('OFFICE-MANAGER', 'PATIENT')")
-    public ResponseEntity<AppointmentResponseDTO> createAppointment(@Valid @RequestBody AppointmentRequestDTO dto) {
+    public ResponseEntity<AppointmentResponseDTO> createAppointment(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "Details to create an appointment",
+                    required = true,
+                    content = @Content(schema = @Schema(implementation = AppointmentRequestDTO.class))
+            )
+            @Valid @org.springframework.web.bind.annotation.RequestBody AppointmentRequestDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(appointmentService.saveAppointment(dto));
     }
 
+    @Operation(
+            summary = "Get appointment details",
+            description = "Only OFFICE-MANAGER or associated patient or dentist can get appointment details",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "appointment details"),
+                    @ApiResponse(responseCode = "401", description = "Not authenticated"),
+                    @ApiResponse(responseCode = "403", description = "Not authorized")
+            }
+    )
     @GetMapping("/{id}")
-    public ResponseEntity<AppointmentResponseDTO> getAppointment(@PathVariable Long id) {
+    public ResponseEntity<AppointmentResponseDTO> getAppointment(
+            @Parameter(description = "ID of the appointment ", required = true)
+            @PathVariable Long id) {
         AppointmentResponseDTO appointment = appointmentService.getAppointmentById(id);
 
         User currentUser = getCurrentUser();
@@ -53,11 +84,23 @@ public class AppointmentController {
         return ResponseEntity.ok(appointment);
     }
 
+    @Operation(
+            summary = "Get appointments ",
+            description = "Only OFFICE-MANAGER can get appointments details",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "appointment details"),
+                    @ApiResponse(responseCode = "401", description = "Not authenticated"),
+                    @ApiResponse(responseCode = "403", description = "Not authorized")
+            }
+    )
     @GetMapping
     @PreAuthorize("hasRole('OFFICE-MANAGER')")
     public ResponseEntity<?> getAppointments(
+            @Parameter(description = "Filter criteria for appointments", required = false)
             @ModelAttribute AppointmentFilterDTO filterDTO,
+            @Parameter(description = "Whether to fetch all appointment without pagination", example = "false")
             @RequestParam(defaultValue = "false") boolean fetchAll,
+            @Parameter(description = "Pagination and sorting criteria", required = false)
             @PageableDefault(size = 10, sort = "dateTime") Pageable pageable
     ) {
         if(fetchAll) {
@@ -67,45 +110,145 @@ public class AppointmentController {
     }
 
 
+    @Operation(
+            summary = "delete appointment",
+            description = "Only OFFICE-MANAGER can delete appointment",
+            responses = {
+                    @ApiResponse(responseCode = "204", description = "appointment deleted"),
+                    @ApiResponse(responseCode = "401", description = "Not authenticated"),
+                    @ApiResponse(responseCode = "403", description = "Not authorized")
+            }
+    )
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('OFFICE-MANAGER')")
-    public ResponseEntity<Void> deleteAppointment(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteAppointment(
+            @Parameter(description = "ID of the appointment to delete", required = true)
+            @PathVariable Long id) {
         appointmentService.deleteAppointment(id);
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(
+            summary = "Update appointment",
+            description = "Only OFFICE-MANAGER can perform this action",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "appointment updated"),
+                    @ApiResponse(responseCode = "400", description = "Invalid input"),
+                    @ApiResponse(responseCode = "401", description = "Not authenticated"),
+                    @ApiResponse(responseCode = "403", description = "Not authorized")
+            }
+    )
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('OFFICE-MANAGER')")
-    public ResponseEntity<AppointmentResponseDTO> updateAppointment(@PathVariable Long id,
-                                                            @Valid @RequestBody AppointmentRequestDTO dto) {
+    public ResponseEntity<AppointmentResponseDTO> updateAppointment(
+            @Parameter(description = "ID of the appointment to update", required = true)
+            @PathVariable Long id,
+
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "Updated appointment details",
+                    required = true,
+                    content = @Content(schema = @Schema(implementation = AppointmentRequestDTO.class))
+            )
+            @Valid @org.springframework.web.bind.annotation.RequestBody AppointmentRequestDTO dto) {
         return ResponseEntity.ok(appointmentService.updateAppointment(id, dto));
     }
 
+    @Operation(
+            summary = "Cancel appointment",
+            description = "Only OFFICE-MANAGER or associate patient can perform this action. \n" +
+                    "Only possible to cancel an appointment when it is in one of these states: REQUESTED, SCHEDULED, RESCHEDULE_REQUESTED, RESCHEDULED",
+
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "appointment cancelled or cancellation requested."),
+                    @ApiResponse(responseCode = "400", description = "Invalid input"),
+                    @ApiResponse(responseCode = "401", description = "Not authenticated"),
+                    @ApiResponse(responseCode = "403", description = "Not authorized")
+            }
+    )
     @PutMapping("/{id}/cancel")
     @PreAuthorize("hasAnyRole('OFFICE-MANAGER', 'PATIENT')")
-    public ResponseEntity<?> cancelAppointment(@PathVariable Long id) {
+    public ResponseEntity<?> cancelAppointment(
+            @Parameter(description = "ID of the appointment to cancel", required = true)
+            @PathVariable Long id) {
         String message = appointmentService.cancelAppointment(id);
         return ResponseEntity.ok(new MessageResponseDTO(message));
     }
 
+    @Operation(
+            summary = "Reschedule appointment",
+            description = "Only OFFICE-MANAGER or associate patient can perform this action. \n" +
+                    "Only possible to reschedule an appointment when it is in one of these states: REQUESTED, SCHEDULED, RESCHEDULE_REQUESTED, CANCELLATION_REQUESTED",
+
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "appointment rescheduled or reschedule requested."),
+                    @ApiResponse(responseCode = "400", description = "Invalid input"),
+                    @ApiResponse(responseCode = "401", description = "Not authenticated"),
+                    @ApiResponse(responseCode = "403", description = "Not authorized")
+            }
+    )
     @PutMapping("/{id}/reschedule")
     @PreAuthorize("hasAnyRole('OFFICE-MANAGER', 'PATIENT')")
-    public ResponseEntity<AppointmentResponseDTO> rescheduleAppointment(@PathVariable Long id,
-                                                                    @Valid @RequestBody RescheduleAppointmentDTO dto) {
+    public ResponseEntity<AppointmentResponseDTO> rescheduleAppointment(
+            @Parameter(description = "ID of the appointment to reschedule", required = true)
+            @PathVariable Long id,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "New appointment date",
+                    required = true,
+                    content = @Content(schema = @Schema(implementation = RescheduleAppointmentDTO.class))
+            )
+            @Valid @org.springframework.web.bind.annotation.RequestBody RescheduleAppointmentDTO dto) {
         return ResponseEntity.ok(appointmentService.rescheduleAppointment(id, dto));
     }
 
     // Generate bill
+    @Operation(
+            summary = "Generate bill",
+            description = "Only OFFICE-MANAGER can perform this action.",
+
+            responses = {
+                    @ApiResponse(responseCode = "201", description = "Bill created"),
+                    @ApiResponse(responseCode = "400", description = "Invalid input"),
+                    @ApiResponse(responseCode = "401", description = "Not authenticated"),
+                    @ApiResponse(responseCode = "403", description = "Not authorized")
+            }
+    )
     @PostMapping("/{id}/bills")
     @PreAuthorize("hasRole('OFFICE-MANAGER')")
-    public ResponseEntity<BillResponseDTO> generateBill(@PathVariable Long id, @Valid @RequestBody BillRequestDTO dto) {
+    public ResponseEntity<BillResponseDTO> generateBill(
+            @Parameter(description = "ID of the appointment", required = true)
+            @PathVariable Long id,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "Bill details",
+                    required = true,
+                    content = @Content(schema = @Schema(implementation = BillRequestDTO.class))
+            )
+            @Valid @org.springframework.web.bind.annotation.RequestBody BillRequestDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(appointmentService.generateBill(id, dto));
     }
 
     //Make a payment
+    @Operation(
+            summary = "Register a payment",
+            description = "Only OFFICE-MANAGER can perform this action.",
+
+            responses = {
+                    @ApiResponse(responseCode = "201", description = "Bill created"),
+                    @ApiResponse(responseCode = "400", description = "Invalid input"),
+                    @ApiResponse(responseCode = "401", description = "Not authenticated"),
+                    @ApiResponse(responseCode = "403", description = "Not authorized")
+            }
+    )
     @PostMapping("/{id}/payments")
     @PreAuthorize("hasRole('OFFICE-MANAGER')")
-    public ResponseEntity<PaymentResponseDTO> registerPayment(@PathVariable Long id,@Valid @RequestBody PaymentRequestDTO dto) {
+    public ResponseEntity<PaymentResponseDTO> registerPayment(
+            @Parameter(description = "ID of the appointment", required = true)
+            @PathVariable Long id,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "Payment details",
+                    required = true,
+                    content = @Content(schema = @Schema(implementation = PaymentRequestDTO.class))
+            )
+            @Valid @org.springframework.web.bind.annotation.RequestBody PaymentRequestDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(appointmentService.makePayment(id, dto));
     }
 

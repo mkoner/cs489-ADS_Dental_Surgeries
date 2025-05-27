@@ -69,18 +69,18 @@ public class GlobalExceptionHandler {
         );
     }
 
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<?> handleGenericException(Exception ex) {
-        //TO DO LATER Log the ex
-        var response = new ErrorResponse(
-                Instant.now(),
-                HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                "Server Error",
-                "Your request could not be processed. Please try again later."
-        );
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-                response
-        );
-    }
+//    @ExceptionHandler(Exception.class)
+//    public ResponseEntity<?> handleGenericException(Exception ex) {
+//        //TO DO LATER Log the ex
+//        var response = new ErrorResponse(
+//                Instant.now(),
+//                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+//                "Server Error",
+//                "Your request could not be processed. Please try again later."
+//        );
+//        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+//                response
+//        );
+//    }
 }
 

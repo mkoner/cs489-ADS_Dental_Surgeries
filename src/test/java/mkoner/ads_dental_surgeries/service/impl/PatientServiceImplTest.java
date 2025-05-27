@@ -91,7 +91,7 @@ class PatientServiceImplTest {
         List<PatientResponseDTO> result = patientService.getAllPatients();
 
         assertEquals(1, result.size());
-        assertEquals("Alex", result.getFirst().firstName());
+        assertEquals("Alex", result.get(0).firstName());
         verify(patientRepository).findAll();
     }
 

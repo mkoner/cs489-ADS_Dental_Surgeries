@@ -137,7 +137,8 @@ public class AppointmentServiceImpl implements AppointmentService {
         Money money = new Money(paymentRequestDTO.amount(), bill.getAmount().getCurrency(), bill.getAmount().getCurrencySymbol());
         bill.makePayment(money);
         appointmentRepository.save(appointment);
-        return paymentMapper.mapToPaymentResponseDTO(appointment.getBill().getPayments().getLast());
+        Payment payment = appointment.getBill().getPayments().get(appointment.getBill().getPayments().size() - 1);
+        return paymentMapper.mapToPaymentResponseDTO(payment);
     }
 
     @Override

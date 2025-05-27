@@ -74,6 +74,18 @@ After starting the application, the Swagger UI will be available at:
    ```
 
 ---
+## 🐳 Running the Application with Docker
+
+Make sure Docker is installed and running on your machine. Then, from the root directory of the project, execute the following command:
+
+```bash
+docker-compose up
+```
+To run in detached mode (in the background), use:
+```bash
+docker-compose up -d
+```
+---
 
 ## 🧪 Running Tests
 

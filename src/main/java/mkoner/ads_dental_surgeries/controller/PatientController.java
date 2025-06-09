@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import mkoner.ads_dental_surgeries.dto.appointment.AppointmentResponseDTO;
 import mkoner.ads_dental_surgeries.dto.patient.PatientFilterDTO;
 import mkoner.ads_dental_surgeries.dto.patient.PatientRequestDTO;
@@ -26,6 +27,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/patients")
 @RequiredArgsConstructor
+@Slf4j
 public class PatientController {
 
     private final PatientService patientService;
@@ -50,7 +52,9 @@ public class PatientController {
                 content = @Content(schema = @Schema(implementation = PatientRequestDTO.class))
             )
             @Valid @org.springframework.web.bind.annotation.RequestBody PatientRequestDTO dto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(patientService.savePatient(dto));
+        log.info("Request to create patient: {}", dto);
+        PatientResponseDTO patient = patientService.savePatient(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(patient);
     }
 
     @Operation(
@@ -62,7 +66,9 @@ public class PatientController {
     public ResponseEntity<PatientResponseDTO> getPatient(
             @Parameter(description = "ID of the patient to retrieve", required = true)
             @PathVariable Long id) {
-        return ResponseEntity.ok(patientService.getPatientById(id));
+        log.info("Request to get Patient {}", id);
+        PatientResponseDTO patient = patientService.getPatientById(id);
+        return ResponseEntity.ok(patient);
     }
 
     @Operation(
@@ -84,9 +90,11 @@ public class PatientController {
             @Parameter(description = "Whether to fetch all patients without pagination", example = "false")
             @RequestParam(defaultValue = "false") boolean fetchAll) {
         if(fetchAll) {
+            log.info("Request to fetch all patients");
             return ResponseEntity.ok(patientService.getAllPatients());
         }
         else{
+            log.info("Request to fetch patients with optional filters and pagination: {} {}", filterDTO, pageable);
             return ResponseEntity.ok(patientService.getFilteredPatientsWithPagination(filterDTO, pageable));
         }
     }
@@ -113,7 +121,10 @@ public class PatientController {
                     content = @Content(schema = @Schema(implementation = PatientUpdateDTO.class))
             )
             @Valid @org.springframework.web.bind.annotation.RequestBody PatientUpdateDTO dto) {
-        return ResponseEntity.ok(patientService.updatePatient(id, dto));
+        log.info("Request to update patient {} {}", id, dto);
+        PatientResponseDTO patient = patientService.updatePatient(id, dto);
+        log.info("Successfully updated patient {}", id);
+        return ResponseEntity.ok(patient);
     }
 
     @Operation(
@@ -131,7 +142,9 @@ public class PatientController {
     public ResponseEntity<Void> deletePatient(
             @Parameter(description = "ID of the patient to delete", required = true)
             @PathVariable Long id) {
+        log.info("Request to delete patient {}", id);
         patientService.deletePatient(id);
+        log.info("Successfully deleted patient {}", id);
         return ResponseEntity.noContent().build();
     }
 
@@ -144,7 +157,9 @@ public class PatientController {
     public ResponseEntity<List<AppointmentResponseDTO>> getAppointments(
             @Parameter(description = "ID of the patient", required = true)
             @PathVariable Long id) {
-        return ResponseEntity.ok(appointmentService.getAppointmentsByPatient(id));
+        log.info("Request to get appointments for patient {}", id);
+        var appointments = appointmentService.getAppointmentsByPatient(id);
+        return ResponseEntity.ok(appointments);
     }
 }
 

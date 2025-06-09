@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import mkoner.ads_dental_surgeries.dto.MessageResponseDTO;
 import mkoner.ads_dental_surgeries.dto.auth.LoginRequest;
 import mkoner.ads_dental_surgeries.dto.dentist.DentistRequestDTO;
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("api/auth")
 @RequiredArgsConstructor
 @SecurityRequirements(value = {})
+@Slf4j
 public class AuthController {
 
     private final AuthService authService;
@@ -45,8 +47,9 @@ public class AuthController {
                     content = @Content(schema = @Schema(implementation = LoginRequest.class))
             )
             @Valid @org.springframework.web.bind.annotation.RequestBody LoginRequest loginRequest) {
+        log.info("Request to login: {}", loginRequest.userName());
         String token = authService.authenticate(loginRequest);
-
+        log.info("Successfully logged in: {}", loginRequest.userName());
         return ResponseEntity.ok()
                 .header("X-Auth-Token", token)
                 .body(new MessageResponseDTO("Login successful"));
@@ -68,7 +71,10 @@ public class AuthController {
                     content = @Content(schema = @Schema(implementation = DentistRequestDTO.class))
             )
             @Valid @org.springframework.web.bind.annotation.RequestBody DentistRequestDTO dentistRequestDTO) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(dentistService.saveDentist(dentistRequestDTO));
+        log.info("Request to create dentist: {}", dentistRequestDTO);
+        DentistResponseDTO dentist = dentistService.saveDentist(dentistRequestDTO);
+        log.info("Successfully created dentist with id {}", dentist.userId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(dentist);
     }
 
     @Operation(
@@ -86,7 +92,10 @@ public class AuthController {
                     content = @Content(schema = @Schema(implementation = PatientRequestDTO.class))
             )
             @Valid @org.springframework.web.bind.annotation.RequestBody PatientRequestDTO patientRequestDTO) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(patientService.savePatient(patientRequestDTO));
+        log.info("Request to create patient: {}", patientRequestDTO);
+        PatientResponseDTO patient = patientService.savePatient(patientRequestDTO);
+        log.info("Successfully created patient with id {}", patient.userId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(patient);
     }
 
 }

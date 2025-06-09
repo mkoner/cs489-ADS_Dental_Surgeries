@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import mkoner.ads_dental_surgeries.dto.appointment.AppointmentResponseDTO;
 import mkoner.ads_dental_surgeries.dto.dentist.DentistFilterDTO;
 import mkoner.ads_dental_surgeries.dto.dentist.DentistRequestDTO;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/dentists")
 @RequiredArgsConstructor
@@ -50,7 +52,10 @@ public class DentistController {
                 content = @Content(schema = @Schema(implementation = DentistRequestDTO.class))
             )
             @Valid @org.springframework.web.bind.annotation.RequestBody DentistRequestDTO dto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(dentistService.saveDentist(dto));
+        log.info("Request to register Dentist: {}", dto);
+        DentistResponseDTO dentist = dentistService.saveDentist(dto);
+        log.info("Successfully registered Dentist with id: {}", dentist.userId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(dentist);
     }
 
     @Operation(
@@ -67,7 +72,10 @@ public class DentistController {
     public ResponseEntity<DentistResponseDTO> getDentist(
             @Parameter(description = "ID of the dentist to retrieve", required = true)
             @PathVariable Long id) {
-        return ResponseEntity.ok(dentistService.getDentistById(id));
+        log.info("Request to get Dentist: {}", id);
+        DentistResponseDTO response = dentistService.getDentistById(id);
+        log.info("Successfully retrieved Dentist with id: {}", id);
+        return ResponseEntity.ok(response);
     }
 
     @Operation(
@@ -90,8 +98,10 @@ public class DentistController {
             @PageableDefault(size = 10, sort = "lastName") Pageable pageable
     ) {
         if(fetchAll) {
+            log.info("Fetching all dentists");
             return ResponseEntity.ok(dentistService.getAllDentists());
         }
+        log.info("Fetching dentists with filter {} and pagination: {}", filterDTO, pageable);
         return ResponseEntity.ok(dentistService.getFilteredDentists(filterDTO, pageable));
     }
 
@@ -117,7 +127,10 @@ public class DentistController {
                     content = @Content(schema = @Schema(implementation = DentistUpdateDTO.class))
             )
             @Valid @org.springframework.web.bind.annotation.RequestBody DentistUpdateDTO dto) {
-        return ResponseEntity.ok(dentistService.updateDentist(id, dto));
+        log.info("Request to update dentist {} {}", id, dto);
+        DentistResponseDTO response = dentistService.updateDentist(id, dto);
+        log.info("Successfully updated Dentist with id {}", id);
+        return ResponseEntity.ok(response);
     }
 
     @Operation(
@@ -135,7 +148,9 @@ public class DentistController {
     public ResponseEntity<Void> deleteDentist(
             @Parameter(description = "ID of the dentist to delete", required = true)
             @PathVariable Long id) {
+        log.info("Request to delete dentist {}", id);
         dentistService.deleteDentist(id);
+        log.info("Successfully deleted Dentist with id {}", id);
         return ResponseEntity.noContent().build();
     }
 
@@ -148,7 +163,10 @@ public class DentistController {
     public ResponseEntity<List<AppointmentResponseDTO>> getAppointments(
             @Parameter(description = "ID of the dentist", required = true)
             @PathVariable Long id) {
-        return ResponseEntity.ok(appointmentService.getAppointmentsByDentist(id));
+        log.info("Request to get appointments for dentist {}", id);
+        var appointments = appointmentService.getAppointmentsByDentist(id);
+        log.info("Successfully retrieved appointments for dentist {}", id);
+        return ResponseEntity.ok(appointments);
     }
 }
 

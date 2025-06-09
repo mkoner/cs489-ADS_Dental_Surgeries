@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import mkoner.ads_dental_surgeries.dto.surgery.SurgeryFilterDTO;
 import mkoner.ads_dental_surgeries.dto.surgery.SurgeryRequestDTO;
 import mkoner.ads_dental_surgeries.dto.surgery.SurgeryResponseDTO;
@@ -24,6 +25,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/surgeries")
 @RequiredArgsConstructor
+@Slf4j
 public class SurgeryController {
 
     private final SurgeryService surgeryService;
@@ -47,7 +49,10 @@ public class SurgeryController {
                 content = @Content(schema = @Schema(implementation = SurgeryRequestDTO.class))
             )
             @Valid @org.springframework.web.bind.annotation.RequestBody SurgeryRequestDTO dto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(surgeryService.saveSurgery(dto));
+        log.info("Request to create surgery {}", dto);
+        var surgery = surgeryService.saveSurgery(dto);
+        log.info("Successfully created surgery {}", surgery.surgeryId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(surgery);
     }
 
 
@@ -58,7 +63,10 @@ public class SurgeryController {
     public ResponseEntity<SurgeryResponseDTO> getSurgery(
             @Parameter(description = "ID of the surgery to retrieve", required = true)
             @PathVariable Long id) {
-        return ResponseEntity.ok(surgeryService.getSurgeryById(id));
+        log.info("Request to get surgery {}", id);
+        var surgery = surgeryService.getSurgeryById(id);
+        log.info("Successfully fetched surgery {}", surgery.surgeryId());
+        return ResponseEntity.ok(surgery);
     }
 
 
@@ -76,9 +84,11 @@ public class SurgeryController {
             @PageableDefault(size = 10, sort = "name") Pageable pageable) {
 
         if (fetchAll) {
+            log.info("Request to fetch all surgeries without pagination");
             List<SurgeryResponseDTO> surgeries = surgeryService.getAllSurgeries();
             return ResponseEntity.ok(surgeries);
         } else {
+            log.info("Request to fetch surgeries with pagination and filter {} {}", filterDTO, pageable);
             Page<SurgeryResponseDTO> filteredSurgeries = surgeryService.getFilteredSurgeriesWithPagination(filterDTO, pageable);
             return ResponseEntity.ok(filteredSurgeries);
         }
@@ -107,7 +117,10 @@ public class SurgeryController {
                     content = @Content(schema = @Schema(implementation = SurgeryRequestDTO.class))
             )
             @Valid @org.springframework.web.bind.annotation.RequestBody SurgeryRequestDTO dto) {
-        return ResponseEntity.ok(surgeryService.updateSurgery(id, dto));
+        log.info("Request to update surgery {} {}", id, dto);
+        var surgery = surgeryService.updateSurgery(id, dto);
+        log.info("Successfully updated surgery {}", surgery.surgeryId());
+        return ResponseEntity.ok(surgery);
     }
 
     @Operation(
@@ -125,7 +138,9 @@ public class SurgeryController {
     public ResponseEntity<Void> deleteSurgery(
             @Parameter(description = "ID of the surgery to delete", required = true)
             @PathVariable Long id) {
+        log.info("Request to delete surgery {}", id);
         surgeryService.deleteSurgery(id);
+        log.info("Successfully deleted surgery {}", id);
         return ResponseEntity.noContent().build();
     }
 

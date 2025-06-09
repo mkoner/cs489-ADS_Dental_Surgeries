@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import mkoner.ads_dental_surgeries.dto.MessageResponseDTO;
 import mkoner.ads_dental_surgeries.dto.appointment.AppointmentFilterDTO;
 import mkoner.ads_dental_surgeries.dto.appointment.AppointmentRequestDTO;
@@ -32,6 +33,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/appointments")
 @RequiredArgsConstructor
+@Slf4j
 public class AppointmentController {
 
     private final AppointmentService appointmentService;
@@ -55,7 +57,10 @@ public class AppointmentController {
                     content = @Content(schema = @Schema(implementation = AppointmentRequestDTO.class))
             )
             @Valid @org.springframework.web.bind.annotation.RequestBody AppointmentRequestDTO dto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(appointmentService.saveAppointment(dto));
+        log.info("Request to create appointment {}", dto.toString());
+        AppointmentResponseDTO createdAppointment = appointmentService.saveAppointment(dto);
+        log.info("Created appointment with id {}", createdAppointment.appointmentId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdAppointment);
     }
 
     @Operation(
@@ -71,6 +76,7 @@ public class AppointmentController {
     public ResponseEntity<AppointmentResponseDTO> getAppointment(
             @Parameter(description = "ID of the appointment ", required = true)
             @PathVariable Long id) {
+        log.debug("Request to get appointment {}", id);
         AppointmentResponseDTO appointment = appointmentService.getAppointmentById(id);
 
         User currentUser = getCurrentUser();
@@ -78,9 +84,10 @@ public class AppointmentController {
         boolean isDentist = appointment.dentist().userId().equals(currentUser.getUserId());
 
         if (!isOfficeManager() && !isPatient && !isDentist) {
+            log.warn("User {} is not authorized to view appointment {}", currentUser.getUserId(), id);
             throw new AccessDeniedException("You are not authorized to view this appointment.");
         }
-
+        log.info("Fetched appointment {}", id);
         return ResponseEntity.ok(appointment);
     }
 
@@ -104,8 +111,11 @@ public class AppointmentController {
             @PageableDefault(size = 10, sort = "dateTime") Pageable pageable
     ) {
         if(fetchAll) {
+            log.info("Request to fetch all appointments without pagination");
             return ResponseEntity.ok(appointmentService.getAllAppointments());
         }
+        log.info("Request to fetch filtered appointments with criteria: {}, page: {}, size: {}, sort: {}",
+                filterDTO, pageable.getPageNumber(), pageable.getPageSize(), pageable.getSort());
         return ResponseEntity.ok(appointmentService.getFilteredAppointments(filterDTO, pageable));
     }
 
@@ -124,7 +134,9 @@ public class AppointmentController {
     public ResponseEntity<Void> deleteAppointment(
             @Parameter(description = "ID of the appointment to delete", required = true)
             @PathVariable Long id) {
+        log.info("Request to delete appointment with ID {}", id);
         appointmentService.deleteAppointment(id);
+        log.info("Successfully deleted appointment with ID {}", id);
         return ResponseEntity.noContent().build();
     }
 
@@ -150,7 +162,11 @@ public class AppointmentController {
                     content = @Content(schema = @Schema(implementation = AppointmentRequestDTO.class))
             )
             @Valid @org.springframework.web.bind.annotation.RequestBody AppointmentRequestDTO dto) {
-        return ResponseEntity.ok(appointmentService.updateAppointment(id, dto));
+        log.info("Request to update appointment with ID {}", id);
+        AppointmentResponseDTO updatedAppointment = appointmentService.updateAppointment(id, dto);
+        log.info("Successfully updated appointment with ID {}", id);
+
+        return ResponseEntity.ok(updatedAppointment);
     }
 
     @Operation(
@@ -170,7 +186,9 @@ public class AppointmentController {
     public ResponseEntity<?> cancelAppointment(
             @Parameter(description = "ID of the appointment to cancel", required = true)
             @PathVariable Long id) {
+        log.info("Request to cancel appointment with ID {}", id);
         String message = appointmentService.cancelAppointment(id);
+        log.info("Successfully cancelled appointment with ID {}", id);
         return ResponseEntity.ok(new MessageResponseDTO(message));
     }
 
@@ -197,7 +215,10 @@ public class AppointmentController {
                     content = @Content(schema = @Schema(implementation = RescheduleAppointmentDTO.class))
             )
             @Valid @org.springframework.web.bind.annotation.RequestBody RescheduleAppointmentDTO dto) {
-        return ResponseEntity.ok(appointmentService.rescheduleAppointment(id, dto));
+        log.info("Request to reschedule appointment with ID {}", id);
+        AppointmentResponseDTO updatedAppointment = appointmentService.rescheduleAppointment(id, dto);
+        log.info("Successfully rescheduled appointment with ID {}", id);
+        return ResponseEntity.ok(updatedAppointment);
     }
 
     // Generate bill
@@ -223,7 +244,11 @@ public class AppointmentController {
                     content = @Content(schema = @Schema(implementation = BillRequestDTO.class))
             )
             @Valid @org.springframework.web.bind.annotation.RequestBody BillRequestDTO dto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(appointmentService.generateBill(id, dto));
+        log.info("Request to generate bill for appointment ID {}", id);
+        BillResponseDTO response = appointmentService.generateBill(id, dto);
+        log.info("Successfully generated bill for appointment ID {}", id);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     //Make a payment
@@ -249,7 +274,10 @@ public class AppointmentController {
                     content = @Content(schema = @Schema(implementation = PaymentRequestDTO.class))
             )
             @Valid @org.springframework.web.bind.annotation.RequestBody PaymentRequestDTO dto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(appointmentService.makePayment(id, dto));
+        log.info("Request to register payment for appointment ID {}", id);
+        PaymentResponseDTO response = appointmentService.makePayment(id, dto);
+        log.info("Successfully registered payment for appointment ID {}", id);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     private boolean isOfficeManager() {

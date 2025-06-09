@@ -2,6 +2,7 @@ package mkoner.ads_dental_surgeries.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import mkoner.ads_dental_surgeries.dto.user.UserFilterDTO;
 import mkoner.ads_dental_surgeries.dto.user.UserRequestDTO;
 import mkoner.ads_dental_surgeries.dto.user.UserResponseDTO;
@@ -23,6 +24,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 @RestController
 @RequestMapping("api/users")
 @RequiredArgsConstructor
+@Slf4j
 public class UserController {
 
     private final UserService userService;
@@ -47,7 +49,10 @@ public class UserController {
             )
             @Valid @org.springframework.web.bind.annotation.RequestBody UserRequestDTO dto
     ) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(userService.createUser(dto));
+        log.info("Request to create user {}", dto);
+        var user = userService.createUser(dto);
+        log.info("Successfully created user {}", user.userId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(user);
     }
 
     @Operation(
@@ -60,7 +65,10 @@ public class UserController {
             @Parameter(description = "ID of the user to retrieve", required = true)
             @PathVariable Long id
     ) {
-        return ResponseEntity.ok(userService.findUserById(id));
+        log.info("Request to get  user {}", id);
+        var user = userService.findUserById(id);
+        log.info("Successfully get user {}", user.userId());
+        return ResponseEntity.ok(user);
     }
 
     @Operation(
@@ -85,8 +93,10 @@ public class UserController {
             @PageableDefault(size = 10, sort = "userId") Pageable pageable
     ) {
         if (fetchAll) {
+            log.info("Request to fetch all users");
             return ResponseEntity.ok(userService.getAllUsers());
         } else {
+            log.info("Request to fetch users with optional filters and pagination {} {}", filterDTO, pageable);
             return ResponseEntity.ok(userService.getFilteredUsersWithPagination(filterDTO, pageable));
         }
     }
@@ -114,7 +124,10 @@ public class UserController {
             )
             @Valid @org.springframework.web.bind.annotation.RequestBody UserUpdateDTO dto
     ) {
-        return ResponseEntity.ok(userService.updateUser(id, dto));
+        log.info("Request to update user {} {}", id, dto);
+        var user = userService.updateUser(id, dto);
+        log.info("Successfully updated user {}", user.userId());
+        return ResponseEntity.ok(user);
     }
 
     @Operation(
@@ -133,7 +146,9 @@ public class UserController {
             @Parameter(description = "ID of the user to delete", required = true)
             @PathVariable Long id
     ) {
+        log.info("Request to delete user {}", id);
         userService.deleteUser(id);
+        log.info("Successfully deleted user {}", id);
         return ResponseEntity.noContent().build();
     }
 }

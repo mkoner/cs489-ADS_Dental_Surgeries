@@ -1,6 +1,7 @@
 package mkoner.ads_dental_surgeries.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import mkoner.ads_dental_surgeries.dto.surgery.SurgeryFilterDTO;
 import mkoner.ads_dental_surgeries.dto.surgery.SurgeryRequestDTO;
 import mkoner.ads_dental_surgeries.dto.surgery.SurgeryResponseDTO;
@@ -19,11 +20,10 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SurgeryServiceImpl implements SurgeryService {
 
     private final SurgeryRepository surgeryRepository;
@@ -32,32 +32,46 @@ public class SurgeryServiceImpl implements SurgeryService {
 
 
     public List<SurgeryResponseDTO> getAllSurgeries() {
-        return surgeryRepository.findAll().stream()
+        log.debug("Fetching all surgeries");
+        var surgeries = surgeryRepository.findAll().stream()
                 .map(surgeryMapper::mapToSurgeryResponseDTO)
-                .collect(Collectors.toList());
+                .toList();
+        log.info("Successfully retrieved {} surgeries", surgeries.size());
+        return surgeries;
     }
 
     public SurgeryResponseDTO getSurgeryById(Long id) {
+        log.debug("Fetching surgery by ID {}", id);
         var surgery = surgeryRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Surgery with id " + id + " not found"));
+                .orElseThrow(() -> {
+                    log.warn("Could not find surgery with ID {}", id);
+                    return new ResourceNotFoundException("Surgery with id " + id + " not found");
+                });
+        log.info("Successfully retrieved surgery with ID {}", id);
         return surgeryMapper.mapToSurgeryResponseDTO(surgery);
     }
 
     public SurgeryResponseDTO saveSurgery(SurgeryRequestDTO surgery) {
+        log.info("Attempting to save new surgery: {}", surgery);
+
         Surgery newSurgery = surgeryMapper.mapToSurgery(surgery);
-        return surgeryMapper.mapToSurgeryResponseDTO(surgeryRepository.save(newSurgery));
+        Surgery savedSurgery = surgeryRepository.save(newSurgery);
+
+        log.info("Successfully saved surgery with ID: {}", savedSurgery.getSurgeryId());
+
+        return surgeryMapper.mapToSurgeryResponseDTO(savedSurgery);
     }
 
     public void deleteSurgery(Long id) {
-        try{
+        log.info("Attempting to delete surgery with ID: {}", id);
+        try {
             surgeryRepository.deleteById(id);
-        }
-        catch (DataIntegrityViolationException e) {
-            System.out.println(e);
+            log.info("Successfully deleted surgery with ID: {}", id);
+        } catch (DataIntegrityViolationException e) {
+            log.warn("Failed to delete surgery with ID {} due to associated records: {}", id, e.getMessage());
             throw new BadRequestException("Deletion failed due to associated records");
-        }
-        catch (Exception e){
-            System.out.println(e);
+        } catch (Exception e) {
+            log.error("Unexpected error while deleting surgery with ID {}: {}", id, e.getMessage(), e);
             throw new BadRequestException("Deletion failed");
         }
     }
@@ -65,14 +79,26 @@ public class SurgeryServiceImpl implements SurgeryService {
 
     @Override
     public SurgeryResponseDTO updateSurgery(Long id, SurgeryRequestDTO surgeryRequestDTO) {
-        var existingSurgery = surgeryRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Surgery with id " + id + " not found"));
+        log.info("Attempting to update surgery with ID: {}", id);
+
+        var existingSurgery = surgeryRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("Surgery with ID {} not found", id);
+                    return new ResourceNotFoundException("Surgery with id " + id + " not found");
+                });
+
         existingSurgery.setAddress(addressMapper.mapToAddress(surgeryRequestDTO.address()));
         existingSurgery.setPhoneNumber(surgeryRequestDTO.phoneNumber());
         existingSurgery.setName(surgeryRequestDTO.name());
-        return surgeryMapper.mapToSurgeryResponseDTO(existingSurgery);
+
+        Surgery updatedSurgery = surgeryRepository.save(existingSurgery);
+
+        log.info("Successfully updated surgery with ID: {}", id);
+        return surgeryMapper.mapToSurgeryResponseDTO(updatedSurgery);
     }
 
     public Page<SurgeryResponseDTO> getFilteredSurgeriesWithPagination(SurgeryFilterDTO filterDTO, Pageable pageable) {
+        log.debug("Fetching filtered surgeries: {}", filterDTO);
         Specification<Surgery> spec = Specification.where(null);
 
         if (filterDTO.name() != null) {
@@ -89,6 +115,7 @@ public class SurgeryServiceImpl implements SurgeryService {
         }
 
         Page<Surgery> surgeries = surgeryRepository.findAll(spec, pageable);
+        log.info("Successfully retrieved {} surgeries on page {}", surgeries.getTotalElements(), pageable.getPageNumber() );
         return surgeries.map(surgeryMapper::mapToSurgeryResponseDTO);
     }
 

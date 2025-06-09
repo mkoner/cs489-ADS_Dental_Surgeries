@@ -1,6 +1,7 @@
 package mkoner.ads_dental_surgeries.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import mkoner.ads_dental_surgeries.dto.user.UserFilterDTO;
 import mkoner.ads_dental_surgeries.dto.user.UserRequestDTO;
 import mkoner.ads_dental_surgeries.dto.user.UserResponseDTO;
@@ -23,10 +24,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
@@ -36,80 +37,124 @@ public class UserServiceImpl implements UserService {
 
 
     public UserResponseDTO findUserById(Long id) {
+        log.debug("Finding user by id {}", id);
         var user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User with id " + id + " not found"));
+                .orElseThrow(() -> {
+                    log.error("User with id {} not found", id);
+                    return new ResourceNotFoundException("User with id " + id + " not found");
+                });
+        log.info("Retrieved user with id {}", id);
         return userMapper.mapToUserResponseDTO(user);
     }
 
 
     public List<UserResponseDTO> getAllUsers() {
-
-        return userRepository.findAll().stream()
+        log.debug("Finding all users");
+        var users = userRepository.findAll().stream()
                 .map(userMapper::mapToUserResponseDTO)
-                .collect(Collectors.toList());
+                .toList();
+        log.info("Retrieved all {} users", users.size());
+        return users;
     }
 
     @Transactional
     public UserResponseDTO createUser(UserRequestDTO userRequestDTO) {
-        // check if email is already in use
-        userRepository.findByEmailAddress(userRequestDTO.email())
-                .ifPresent(u -> { throw new BadRequestException("Email is already in use by another user"); });
+        log.info("Creating new user with email: {}", userRequestDTO.email());
 
-        // Check if phone number is taken by another user
+        // Check if email is already in use
+        userRepository.findByEmailAddress(userRequestDTO.email())
+                .ifPresent(u -> {
+                    log.warn("Email {} is already in use", userRequestDTO.email());
+                    throw new BadRequestException("Email is already in use by another user");
+                });
+
+        // Check if phone number is already in use
         userRepository.findByPhoneNumber(userRequestDTO.phoneNumber())
-                .ifPresent(u -> { throw new BadRequestException("Phone number is already in use by another user"); });
+                .ifPresent(u -> {
+                    log.warn("Phone number {} is already in use", userRequestDTO.phoneNumber());
+                    throw new BadRequestException("Phone number is already in use by another user");
+                });
 
         var user = userMapper.mapToUser(userRequestDTO);
         user.setPassword(passwordEncoder.encode(user.getPassword()));
+
         String roleName = user.getRole().getRoleName();
         Role role = roleRepository.findByRoleName(roleName)
-                .orElseGet(() -> roleRepository.save(new Role(roleName)));
+                .orElseGet(() -> {
+                    log.info("Role '{}' not found, creating new role entry", roleName);
+                    return roleRepository.save(new Role(roleName));
+                });
 
         user.setRole(role);
-        return userMapper.mapToUserResponseDTO(userRepository.save(user));
+        User savedUser = userRepository.save(user);
+
+        log.info("Successfully created user with ID: {}", savedUser.getUserId());
+        return userMapper.mapToUserResponseDTO(savedUser);
     }
 
     @Transactional
     public void deleteUser(Long id) {
         try{
             userRepository.deleteById(id);
+            log.info("Successfully deleted user with ID {}", id);
         }
         catch (DataIntegrityViolationException e) {
-            System.out.println(e);
+            log.warn("Deletion user for patient ID {} due to data integrity violation: {}", id, e.getMessage());
             throw new BadRequestException("Deletion failed due to associated records");
         }
         catch (Exception e){
-            System.out.println(e);
+            log.error("Unexpected error occurred while deleting patient ID {}: {}", id, e.getMessage(), e);
             throw new BadRequestException("Deletion failed");
         }
     }
 
     @Override
     public UserResponseDTO updateUser(Long id, UserUpdateDTO userUpdateDTO) {
-        var existingUser = userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id " + id + " not found"));
+        log.info("Attempting to update user with ID: {}", id);
+
+        var existingUser = userRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("User with ID {} not found", id);
+                    return new ResourceNotFoundException("User with id " + id + " not found");
+                });
 
         // Check if email is taken by another user
         userRepository.findByEmailAddress(userUpdateDTO.email())
                 .filter(user -> !user.getUserId().equals(id))
-                .ifPresent(u -> { throw new BadRequestException("Email is already in use by another user"); });
+                .ifPresent(u -> {
+                    log.warn("Email {} is already in use by another user", userUpdateDTO.email());
+                    throw new BadRequestException("Email is already in use by another user");
+                });
 
         // Check if phone number is taken by another user
         userRepository.findByPhoneNumber(userUpdateDTO.phoneNumber())
                 .filter(user -> !user.getUserId().equals(id))
-                .ifPresent(u -> { throw new BadRequestException("Phone number is already in use by another user"); });
+                .ifPresent(u -> {
+                    log.warn("Phone number {} is already in use by another user", userUpdateDTO.phoneNumber());
+                    throw new BadRequestException("Phone number is already in use by another user");
+                });
 
         String roleName = userUpdateDTO.role();
         Role role = roleRepository.findByRoleName(roleName)
-                .orElseGet(() -> roleRepository.save(new Role(roleName)));
+                .orElseGet(() -> {
+                    log.info("Role '{}' not found. Creating new role.", roleName);
+                    return roleRepository.save(new Role(roleName));
+                });
+
         existingUser.setRole(role);
         existingUser.setFirstName(userUpdateDTO.firstName());
         existingUser.setLastName(userUpdateDTO.lastName());
         existingUser.setPhoneNumber(userUpdateDTO.phoneNumber());
         existingUser.setEmailAddress(userUpdateDTO.email());
-        return userMapper.mapToUserResponseDTO(userRepository.save(existingUser));
+
+        User updatedUser = userRepository.save(existingUser);
+        log.info("Successfully updated user with ID: {}", updatedUser.getUserId());
+
+        return userMapper.mapToUserResponseDTO(updatedUser);
     }
 
     public Page<UserResponseDTO> getFilteredUsersWithPagination(UserFilterDTO filterDTO, Pageable pageable) {
+        log.debug("Getting filtered users with pagination: {}", filterDTO);
         Specification<User> spec = Specification.where(null);
 
         if (filterDTO.firstName() != null) {
@@ -129,6 +174,7 @@ public class UserServiceImpl implements UserService {
         }
 
         Page<User> users = userRepository.findAll(spec, pageable);
+        log.info("Successfully getting {} users on  page: {}", users.getTotalElements(), pageable.getPageNumber());
         return users.map(userMapper::mapToUserResponseDTO);
     }
 

@@ -1,6 +1,7 @@
 package mkoner.ads_dental_surgeries.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import mkoner.ads_dental_surgeries.dto.patient.PatientFilterDTO;
 import mkoner.ads_dental_surgeries.dto.patient.PatientRequestDTO;
 import mkoner.ads_dental_surgeries.dto.patient.PatientResponseDTO;
@@ -28,6 +29,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PatientServiceImpl implements PatientService {
 
     private final PatientRepository patientRepository;
@@ -38,63 +40,93 @@ public class PatientServiceImpl implements PatientService {
     private final PasswordEncoder passwordEncoder;
 
     public List<PatientResponseDTO> getAllPatients() {
-        return patientRepository.findAll().stream()
+        log.debug("Fetching all patients from database");
+        var patients = patientRepository.findAll().stream()
                 .map(patientMapper::mapToPatientResponseDTO).toList();
+        log.info("Fetched all {} patients from database successfully", patients.size());
+        return patients;
     }
 
     public PatientResponseDTO getPatientById(Long id) {
+        log.debug("Fetching patient with ID {}", id);
         var patient = patientRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Patient with id " + id + " not found"));;
+                .orElseThrow(() -> new ResourceNotFoundException("Patient with id " + id + " not found"));
+        log.info("Fetched patient with ID {}", id);
         return patientMapper.mapToPatientResponseDTO(patient);
     }
 
 
     @Transactional
     public PatientResponseDTO savePatient(PatientRequestDTO patient) {
-        //check if email is used
-        userRepository.findByEmailAddress(patient.email())
-                .ifPresent(u -> { throw new BadRequestException("Email is already in use by another user"); });
+        log.info("Attempting to register new patient with email: {}", patient.email());
 
-        // Check if phone number is taken by another user
+        userRepository.findByEmailAddress(patient.email())
+                .ifPresent(u -> {
+                    log.warn("Email '{}' is already in use by another user (ID: {})", patient.email(), u.getUserId());
+                    throw new BadRequestException("Email is already in use by another user");
+                });
+
         userRepository.findByPhoneNumber(patient.phoneNumber())
-                .ifPresent(u -> { throw new BadRequestException("Phone number is already in use by another user"); });
+                .ifPresent(u -> {
+                    log.warn("Phone number '{}' is already in use by another user (ID: {})", patient.phoneNumber(), u.getUserId());
+                    throw new BadRequestException("Phone number is already in use by another user");
+                });
+
         Patient newPatient = patientMapper.mapToPatient(patient);
         newPatient.setPassword(passwordEncoder.encode(newPatient.getPassword()));
+
         String roleName = newPatient.getRole().getRoleName();
         Role role = roleRepository.findByRoleName(roleName)
-                .orElseGet(() -> roleRepository.save(new Role(roleName)));
+                .orElseGet(() -> {
+                    log.info("Role '{}' not found, creating new role", roleName);
+                    return roleRepository.save(new Role(roleName));
+                });
 
         newPatient.setRole(role);
-        return patientMapper.mapToPatientResponseDTO(patientRepository.save(newPatient));
+
+        Patient savedPatient = patientRepository.save(newPatient);
+        log.info("Successfully registered new patient with ID {}", savedPatient.getUserId());
+
+        return patientMapper.mapToPatientResponseDTO(savedPatient);
     }
 
     public void deletePatient(Long id) {
-        try{
+        log.info("Attempting to delete patient with ID {}", id);
+        try {
             patientRepository.deleteById(id);
-        }
-        catch (DataIntegrityViolationException e) {
-            System.out.println(e);
+            log.info("Successfully deleted patient with ID {}", id);
+        } catch (DataIntegrityViolationException e) {
+            log.warn("Deletion failed for patient ID {} due to data integrity violation: {}", id, e.getMessage());
             throw new BadRequestException("Deletion failed due to associated records");
-        }
-        catch (Exception e){
-            System.out.println(e);
+        } catch (Exception e) {
+            log.error("Unexpected error occurred while deleting patient ID {}: {}", id, e.getMessage(), e);
             throw new BadRequestException("Deletion failed");
         }
     }
 
     @Override
     public PatientResponseDTO updatePatient(Long id, PatientUpdateDTO patientRequestDTO) {
-        var existingPatient = patientRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id " + id + " not found"));
+        log.info("Attempting to update patient with ID {}", id);
 
-        // Check if email is taken by another user
+        var existingPatient = patientRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("Patient with ID {} not found", id);
+                    return new ResourceNotFoundException("User with id " + id + " not found");
+                });
+
         userRepository.findByEmailAddress(patientRequestDTO.email())
                 .filter(user -> !user.getUserId().equals(id))
-                .ifPresent(u -> { throw new BadRequestException("Email is already in use by another user"); });
+                .ifPresent(u -> {
+                    log.warn("Email '{}' is already in use by another user (ID: {})", patientRequestDTO.email(), u.getUserId());
+                    throw new BadRequestException("Email is already in use by another user");
+                });
 
-        // Check if phone number is taken by another user
         userRepository.findByPhoneNumber(patientRequestDTO.phoneNumber())
                 .filter(user -> !user.getUserId().equals(id))
-                .ifPresent(u -> { throw new BadRequestException("Phone number is already in use by another user"); });
+                .ifPresent(u -> {
+                    log.warn("Phone number '{}' is already in use by another user (ID: {})", patientRequestDTO.phoneNumber(), u.getUserId());
+                    throw new BadRequestException("Phone number is already in use by another user");
+                });
 
         existingPatient.setFirstName(patientRequestDTO.firstName());
         existingPatient.setLastName(patientRequestDTO.lastName());
@@ -102,11 +134,15 @@ public class PatientServiceImpl implements PatientService {
         existingPatient.setEmailAddress(patientRequestDTO.email());
         existingPatient.setDateOfBirth(patientRequestDTO.dateOfBirth());
         existingPatient.setAddress(addressMapper.mapToAddress(patientRequestDTO.address()));
-        return patientMapper.mapToPatientResponseDTO(patientRepository.save(existingPatient));
+
+        Patient updatedPatient = patientRepository.save(existingPatient);
+        log.info("Successfully updated patient with ID {}", updatedPatient.getUserId());
+
+        return patientMapper.mapToPatientResponseDTO(updatedPatient);
     }
 
     public Page<PatientResponseDTO> getFilteredPatientsWithPagination(PatientFilterDTO filterDTO, Pageable pageable) {
-
+        log.debug("Get patients with filters and pagination: {}", filterDTO);
         Specification<Patient> spec = Specification.where(null);
 
         if (filterDTO.firstName() != null) spec = spec.and(PatientSpecification.hasFirstName(filterDTO.firstName()));
@@ -117,6 +153,7 @@ public class PatientServiceImpl implements PatientService {
         if (filterDTO.country() != null) spec = spec.and(PatientSpecification.hasCountry(filterDTO.country()));
 
         var patients = patientRepository.findAll(spec, pageable);
+        log.info("Successfully retrieved {} patients on page {}", patients.getTotalElements(), pageable.getPageNumber());
         return patients.map(patientMapper::mapToPatientResponseDTO);
     }
 

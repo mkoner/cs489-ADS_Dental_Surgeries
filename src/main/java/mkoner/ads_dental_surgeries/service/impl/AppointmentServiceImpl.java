@@ -21,6 +21,9 @@ import mkoner.ads_dental_surgeries.repository.DentistRepository;
 import mkoner.ads_dental_surgeries.repository.PatientRepository;
 import mkoner.ads_dental_surgeries.repository.SurgeryRepository;
 import mkoner.ads_dental_surgeries.service.AppointmentService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -49,13 +52,24 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final BillMapper billMapper;
     private final PaymentMapper paymentMapper;
 
+    private static final Logger logger = LoggerFactory.getLogger(AppointmentServiceImpl.class);
+
     public List<AppointmentResponseDTO> getAllAppointments() {
-        return appointmentRepository.findAll().stream()
-                .map(appointmentMapper::mapToAppointmentResponseDTO).toList();
+        logger.debug("Fetching all appointments");
+        List<AppointmentResponseDTO> appointments = appointmentRepository.findAll().stream()
+                .map(appointmentMapper::mapToAppointmentResponseDTO)
+                .toList();
+        logger.info("Fetched {} total appointments", appointments.size());
+        return appointments;
     }
 
     public AppointmentResponseDTO getAppointmentById(Long id) {
-        var appointment = appointmentRepository.findById(id).orElseThrow(()->new ResourceNotFoundException("Appointment with id " + id + " not found"));
+        logger.debug("Fetching appointment with ID {}", id);
+        var appointment = appointmentRepository.findById(id).orElseThrow(() -> {
+            logger.warn("Appointment not found with ID {}", id);
+            return new ResourceNotFoundException("Appointment with id " + id + " not found");
+        });
+        logger.info("Fetched appointment with ID {}", id);
         return appointmentMapper.mapToAppointmentResponseDTO(appointment);
     }
 
@@ -63,28 +77,29 @@ public class AppointmentServiceImpl implements AppointmentService {
         Long patientId = appointmentRequestDTO.patientId();
         Long dentistId = appointmentRequestDTO.dentistId();
         Long surgeryId = appointmentRequestDTO.surgeryId();
+
+        logger.debug("Received appointment request - Patient ID: {}, Dentist ID: {}, Surgery ID: {}",
+                patientId, dentistId, surgeryId);
+
         Patient patient = patientRepository.findById(patientId)
-                .orElseThrow(()->new ResourceNotFoundException("Patient with id " + patientId + " not found"));
+                .orElseThrow(()->{
+                    logger.warn("Patient not found with id {}", patientId);
+                    return new ResourceNotFoundException("Patient with id " + patientId + " not found");
+                });
         //Check if patient has any overdue unpaid bill
         List<Long> unpaidAppointments = getAppointmentIdsWithOverdueUnpaidBillsByPatientId(patientId);
         if(!unpaidAppointments.isEmpty()) {
-            throw new BadRequestException("Patient with id " + patientId + " has overdue unpaid bills for these appointments: " + unpaidAppointments);
+            logger.info("Patient {} has unpaid appointments: {}", patientId, unpaidAppointments);
+            throw new BadRequestException("Patient has overdue unpaid bills for these appointments: " + unpaidAppointments);
         }
-        Dentist dentist = dentistId == null ? null : dentistRepository.findById(dentistId)
-                        .orElseThrow(() -> new ResourceNotFoundException("Dentist with id " + dentistId + " not found"));
-        //Check if dentist has more than 5 appointments
-        if(dentistExceedsAppointmentLimit(dentistId, LocalDate.from(appointmentRequestDTO.dateTime()))){
-            throw new BadRequestException("Dentist already has 5 appointments this week.");
-        }
+        Dentist dentist = getDentistAndCheckIfExceedsAppointmentLimits(dentistId, LocalDate.from(appointmentRequestDTO.dateTime()));
+
         Surgery surgery = surgeryRepository.findById(surgeryId).
-                orElseThrow(() -> new ResourceNotFoundException("Surgery with id " + surgeryId + " not found"));
-        AppointmentStatus status;
-        if(isOfficeManager()){
-            status = AppointmentStatus.SCHEDULED;
-        }
-        else{
-            status = AppointmentStatus.REQUESTED;
-        }
+                orElseThrow(() -> {
+                    logger.warn("Surgery not found with id {}", surgeryId);
+                    return new ResourceNotFoundException("Surgery with id " + surgeryId + " not found");
+                });
+        AppointmentStatus status = isOfficeManager() ? AppointmentStatus.SCHEDULED : AppointmentStatus.REQUESTED;
         Appointment appointment = new Appointment(
                 appointmentRequestDTO.dateTime(),
                 status,
@@ -92,95 +107,139 @@ public class AppointmentServiceImpl implements AppointmentService {
                 dentist,
                 surgery
         );
-        return appointmentMapper.mapToAppointmentResponseDTO(appointmentRepository.save(appointment));
+        Appointment savedAppointment = appointmentRepository.save(appointment);
+        logger.info("Appointment saved successfully with ID {}", savedAppointment.getAppointmentId());
+
+        return appointmentMapper.mapToAppointmentResponseDTO(savedAppointment);
     }
 
     public void deleteAppointment(Long id) {
-        appointmentRepository.deleteById(id);
+        logger.info("Attempting to delete appointment with ID {}", id);
+        try {
+            appointmentRepository.deleteById(id);
+            logger.info("Successfully deleted appointment with ID {}", id);
+        } catch (EmptyResultDataAccessException ex) {
+            logger.warn("Attempted to delete non-existing appointment with ID {}", id);
+        }
     }
 
     public List<AppointmentResponseDTO> getAppointmentsByPatient(Long patientId) {
-        return appointmentRepository.findByPatientUserId(patientId).stream()
-                .map(appointmentMapper::mapToAppointmentResponseDTO).toList();
+        logger.debug("Fetching appointments for patient ID {}", patientId);
+        List<AppointmentResponseDTO> appointments = appointmentRepository.findByPatientUserId(patientId).stream()
+                .map(appointmentMapper::mapToAppointmentResponseDTO)
+                .toList();
+        logger.info("Found {} appointments for patient ID {}", appointments.size(), patientId);
+        return appointments;
     }
 
     public List<AppointmentResponseDTO> getAppointmentsByDentist(Long dentistId) {
-        return appointmentRepository.findByDentistUserId(dentistId).stream()
-                .map(appointmentMapper::mapToAppointmentResponseDTO).toList();
+        logger.debug("Fetching appointments for dentist ID {}", dentistId);
+        List<AppointmentResponseDTO> appointments = appointmentRepository.findByDentistUserId(dentistId).stream()
+                .map(appointmentMapper::mapToAppointmentResponseDTO)
+                .toList();
+        logger.info("Found {} appointments for dentist ID {}", appointments.size(), dentistId);
+        return appointments;
     }
 
     public List<AppointmentResponseDTO> getAppointmentsByStatus(AppointmentStatus status) {
-        return appointmentRepository.findByStatus(status).stream()
-                .map(appointmentMapper::mapToAppointmentResponseDTO).toList();
+        logger.debug("Fetching appointments with status {}", status);
+        List<AppointmentResponseDTO> appointments = appointmentRepository.findByStatus(status).stream()
+                .map(appointmentMapper::mapToAppointmentResponseDTO)
+                .toList();
+        logger.info("Found {} appointments with status {}", appointments.size(), status);
+        return appointments;
     }
 
     @Override
     @Transactional
     public BillResponseDTO generateBill(Long appointmentId, BillRequestDTO billRequestDTO) {
+        logger.debug("Generating bill for appointment with ID {}", appointmentId);
         Appointment appointment = appointmentRepository.findById(appointmentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Appointment with id " + appointmentId + " not found"));
+                .orElseThrow(() -> {
+                    logger.warn("Appointment not found with id {}", appointmentId);
+                    return new ResourceNotFoundException("Appointment with id " + appointmentId + " not found");
+                });
         Money money = new Money(billRequestDTO.amount(), billRequestDTO.currency(), billRequestDTO.currencySymbol());
         appointment.generateBill(money, billRequestDTO.dueDate());
         appointment = appointmentRepository.save(appointment);
-        return billMapper.mapToBillResponseDTO(appointment.getBill());
+        BillResponseDTO billResponseDTO = billMapper.mapToBillResponseDTO(appointment.getBill());
+        logger.info("Generated bill for appointment with ID {}", appointmentId);
+        return billResponseDTO;
     }
 
     @Override
     @Transactional
     public PaymentResponseDTO makePayment(Long appointmentId, PaymentRequestDTO paymentRequestDTO) {
+        logger.debug("Making payment for appointment with ID {}", appointmentId);
         Appointment appointment = appointmentRepository.findById(appointmentId).
-                orElseThrow(() -> new ResourceNotFoundException("Appointment with id " + appointmentId + " not found"));
+                orElseThrow(() -> {
+                    logger.warn("Appointment not found with id {}", appointmentId);
+                    return new ResourceNotFoundException("Appointment with id " + appointmentId + " not found");
+                });
         Bill bill = appointment.getBill();
         if (bill == null) {
+            logger.warn("Bill not found for appointment with ID {}", appointmentId);
             throw new BadRequestException("Appointment with id " + appointmentId + " has no associated bill");
         }
         Money money = new Money(paymentRequestDTO.amount(), bill.getAmount().getCurrency(), bill.getAmount().getCurrencySymbol());
         bill.makePayment(money);
         appointmentRepository.save(appointment);
-        Payment payment = appointment.getBill().getPayments().get(appointment.getBill().getPayments().size() - 1);
+        Payment payment = appointment.getBill().getPayments().getLast();
+        logger.info("Registered payment of {} for appointment with ID {}", payment.getAmount(), appointmentId);
         return paymentMapper.mapToPaymentResponseDTO(payment);
     }
 
     @Override
     public AppointmentResponseDTO updateAppointment(Long appointmentId, AppointmentRequestDTO appointmentRequestDTO) {
-        var existingAppointment = appointmentRepository.findById(appointmentId).orElseThrow(()->new ResourceNotFoundException("Appointment with id " + appointmentId + " not found"));
+        logger.debug("Updating appointment with ID {}", appointmentId);
+        var existingAppointment = appointmentRepository.findById(appointmentId).orElseThrow(()->{
+            logger.warn("Appointment not found with id {}", appointmentId);
+            return new ResourceNotFoundException("Appointment with id " + appointmentId + " not found");
+        });
         Long patientId = appointmentRequestDTO.patientId();
         Long dentistId = appointmentRequestDTO.dentistId();
         Long surgeryId = appointmentRequestDTO.surgeryId();
-        //Check if dentist has more than 5 appointments
-        if(dentistExceedsAppointmentLimit(dentistId, LocalDate.from(appointmentRequestDTO.dateTime()))){
-            throw new BadRequestException("Dentist already has 5 appointments this week.");
-        }
         if(!existingAppointment.getPatient().getUserId().equals(patientId)){
             Patient patient = patientRepository.findById(patientId)
-                    .orElseThrow(()->new ResourceNotFoundException("Patient with id " + patientId + " not found"));
+                    .orElseThrow(()->{
+                        logger.warn("Patient not found with id {}", patientId);
+                        return new ResourceNotFoundException("Patient with id " + patientId + " not found");
+                    });
             existingAppointment.setPatient(patient);
         }
         if(!existingAppointment.getSurgery().getSurgeryId().equals(surgeryId)){
             Surgery surgery =  surgeryRepository.findById(surgeryId).
-                    orElseThrow(() -> new ResourceNotFoundException("Surgery with id " + surgeryId + " not found"));
+                    orElseThrow(() -> {
+                        logger.warn("Surgery not found with id {}", surgeryId);
+                        return new ResourceNotFoundException("Surgery with id " + surgeryId + " not found");
+                    });
             existingAppointment.setSurgery(surgery);
         }
-        Dentist dentist = dentistId != null ?
-                dentistRepository.findById(dentistId).
-                orElseThrow(() -> new ResourceNotFoundException("Dentist with id " + dentistId + " not found"))
-                : null;
+        Dentist dentist = getDentistAndCheckIfExceedsAppointmentLimits(dentistId, LocalDate.from(appointmentRequestDTO.dateTime()));
         existingAppointment.setDentist(dentist);
         existingAppointment.setDateTime(appointmentRequestDTO.dateTime());
         existingAppointment.setStatus(appointmentRequestDTO.status());
-        return appointmentMapper.mapToAppointmentResponseDTO(appointmentRepository.save(existingAppointment));
+        Appointment appointment = appointmentRepository.save(existingAppointment);
+        logger.info("Updated payment for appointment with ID {}", appointmentId);
+        return appointmentMapper.mapToAppointmentResponseDTO(appointment);
     }
     @Override
     public AppointmentResponseDTO rescheduleAppointment(Long id, RescheduleAppointmentDTO dto) {
+        logger.debug("Rescheduling appointment with ID {}", id);
         Appointment appointment = appointmentRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
-        if(!isLoggedUserAuthorizedToPerformAction(appointment.getPatient().getEmailAddress())){
+                .orElseThrow(() -> {
+                    logger.warn("Appointment not found with id {}", id);
+                    return new ResourceNotFoundException("Appointment with id " + id + " not found");
+                });
+        if(isLoggedUserNotAuthorizedToPerformAction(appointment.getPatient().getEmailAddress())){
+            logger.warn("User {} is not authorized to reschedule appointment {}", appointment.getPatient().getEmailAddress(), id);
             throw new AccessDeniedException("You are not authorized to reschedule this appointment.");
         }
 
         if (isOfficeManager()) {
             //Check if dentist has more than 5 appointments
             if(appointment.getDentist() != null && dentistExceedsAppointmentLimit(appointment.getDentist().getUserId(), LocalDate.from(dto.newDateTime()))){
+                logger.info("Dentist {} reached appointment limit", appointment.getDentist().getUserId());
                 throw new BadRequestException("Dentist already has 5 appointments this week.");
             }
             appointment.reschedule(dto.newDateTime(), AppointmentStatus.RESCHEDULED);
@@ -188,17 +247,22 @@ public class AppointmentServiceImpl implements AppointmentService {
             appointment.reschedule(dto.newDateTime(), AppointmentStatus.RESCHEDULE_REQUESTED);
         }
         Appointment updated = appointmentRepository.save(appointment);
-
+        logger.info("Appointment rescheduled: {}", id);
         return appointmentMapper.mapToAppointmentResponseDTO(updated);
     }
     @Override
     public String cancelAppointment(Long id) {
+        logger.debug("Cancelling appointment with ID {}", id);
         Appointment appointment = appointmentRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
-        if(!isLoggedUserAuthorizedToPerformAction(appointment.getPatient().getEmailAddress())){
+                .orElseThrow(() -> {
+                    logger.warn("Appointment not found with id {}", id);
+                    return new ResourceNotFoundException("Appointment with id " + id + " not found");
+                });
+        if(isLoggedUserNotAuthorizedToPerformAction(appointment.getPatient().getEmailAddress())){
+            logger.warn("User {} is not authorized to cancel appointment {}", appointment.getPatient().getEmailAddress(), id);
             throw new AccessDeniedException("You are not authorized to cancel this appointment.");
         }
-        String message = "";
+        String message;
         if (isOfficeManager()) {
             appointment.cancel(AppointmentStatus.CANCELLED);
             message = "Appointment: " + id + " has been cancelled";
@@ -206,14 +270,14 @@ public class AppointmentServiceImpl implements AppointmentService {
             appointment.cancel(AppointmentStatus.CANCELLATION_REQUESTED);
             message = "Cancellation request for Appointment: " + id + " succeeded";
         }
-
         appointmentRepository.save(appointment);
+        logger.info("Appointment cancelled: {}", id);
         return message;
     }
 
     public Page<AppointmentResponseDTO> getFilteredAppointments(AppointmentFilterDTO filterDTO, Pageable pageable) {
+        logger.debug("Filtering appointments with criteria: {}", filterDTO);
         Specification<Appointment> spec = Specification.where(null);
-
         if (filterDTO.appointmentDate() != null) spec = spec.and(AppointmentSpecification.hasAppointmentDate(filterDTO.appointmentDate()));
         if (filterDTO.status() != null) spec = spec.and(AppointmentSpecification.hasStatus(filterDTO.status()));
         if (filterDTO.patientEmail() != null) spec = spec.and(AppointmentSpecification.hasPatientEmail(filterDTO.patientEmail()));
@@ -223,6 +287,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         if (filterDTO.paymentStatus() != null) spec = spec.and(AppointmentSpecification.hasPaymentStatus(filterDTO.paymentStatus()));
 
         var appointments = appointmentRepository.findAll(spec, pageable);
+        logger.info("Filtered appointments fetched: {} records on page {}", appointments.getNumberOfElements(), pageable.getPageNumber());
         return appointments.map(appointmentMapper::mapToAppointmentResponseDTO);
     }
 
@@ -264,10 +329,25 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         return existingAppointments >= 5;
     }
+    private Dentist getDentistAndCheckIfExceedsAppointmentLimits(Long dentistId, LocalDate date) {
+        if(dentistId == null) return null;
 
-    private boolean isLoggedUserAuthorizedToPerformAction(String patientEmail) {
+        Dentist dentist = dentistRepository.findById(dentistId)
+                    .orElseThrow(() -> {
+                        logger.warn("Dentist not found with id {}", dentistId);
+                        return new ResourceNotFoundException("Dentist with id " + dentistId + " not found");
+                    });
+
+            if (dentistExceedsAppointmentLimit(dentistId, date)) {
+                logger.info("Dentist with id {} has reached weekly appointment limit", dentistId);
+                throw new BadRequestException("Dentist already has 5 appointments this week.");
+            }
+            return dentist;
+    }
+
+    private boolean isLoggedUserNotAuthorizedToPerformAction(String patientEmail) {
         if(isOfficeManager()){
-            return true;
+            return false;
         }
         String loggedInUserEmail;
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -277,7 +357,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         else {
             loggedInUserEmail = principal.toString();
         }
-        return loggedInUserEmail.equals(patientEmail);
+        return !loggedInUserEmail.equals(patientEmail);
     }
 }
 

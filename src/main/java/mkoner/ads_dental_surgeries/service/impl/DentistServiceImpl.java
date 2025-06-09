@@ -1,6 +1,7 @@
 package mkoner.ads_dental_surgeries.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import mkoner.ads_dental_surgeries.dto.dentist.DentistFilterDTO;
 import mkoner.ads_dental_surgeries.dto.dentist.DentistRequestDTO;
 import mkoner.ads_dental_surgeries.dto.dentist.DentistResponseDTO;
@@ -27,6 +28,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DentistServiceImpl implements DentistService {
 
     private final DentistRepository dentistRepository;
@@ -36,25 +38,40 @@ public class DentistServiceImpl implements DentistService {
     private final PasswordEncoder passwordEncoder;
 
     public List<DentistResponseDTO> getAllDentists() {
-        return dentistRepository.findAll().stream()
+        log.debug("Fetching all dentists from database");
+        List<DentistResponseDTO> dentist =  dentistRepository.findAll().stream()
                 .map(dentistMapper::mapToDentistResponseDTO).toList();
+        log.info("Fetched all {} dentists from database", dentist.size());
+        return dentist;
     }
 
     public DentistResponseDTO getDentistById(Long id) {
+        log.debug("Fetching dentist by id: {}", id);
         var dentist = dentistRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Dentist with id " + id + " not found"));
+                .orElseThrow(() -> {
+                    log.warn("Dentist with id {} not found", id);
+                    return new ResourceNotFoundException("Dentist with id " + id + " not found");
+                });
+        log.info("Fetched dentist by id: {}", id);
         return dentistMapper.mapToDentistResponseDTO(dentist);
     }
 
     @Transactional
     public DentistResponseDTO saveDentist(DentistRequestDTO dentistRequestDTO) {
+        log.debug("Saving dentist: {}", dentistRequestDTO);
         // Check if email is taken by another user
         userRepository.findByEmailAddress(dentistRequestDTO.email())
-                .ifPresent(u -> { throw new BadRequestException("Email is already in use by another user"); });
+                .ifPresent(u -> {
+                    log.warn("User with email {} already exists", u.getEmailAddress());
+                    throw new BadRequestException("Email is already in use by another user");
+                });
 
         // Check if phone number is taken by another user
         userRepository.findByPhoneNumber(dentistRequestDTO.phoneNumber())
-                .ifPresent(u -> { throw new BadRequestException("Phone number is already in use by another user"); });
+                .ifPresent(u -> {
+                    log.warn("User with phone number {} already exists", u.getPhoneNumber());
+                    throw new BadRequestException("Phone number is already in use by another user");
+                });
 
         Dentist dentist = dentistMapper.mapToDentist(dentistRequestDTO);
         dentist.setPassword(passwordEncoder.encode(dentist.getPassword()));
@@ -63,46 +80,67 @@ public class DentistServiceImpl implements DentistService {
                 .orElseGet(() -> roleRepository.save(new Role(roleName)));
 
         dentist.setRole(role);
-        return dentistMapper.mapToDentistResponseDTO(dentistRepository.save(dentist));
+        Dentist saved =  dentistRepository.save(dentist);
+        log.info("Saved dentist: {}", saved);
+        return dentistMapper.mapToDentistResponseDTO(saved);
     }
 
     public void deleteDentist(Long id) {
-        try{
+        log.info("Attempting to delete dentist with ID {}", id);
+
+        try {
             dentistRepository.deleteById(id);
-        }
-        catch (DataIntegrityViolationException e) {
-            System.out.println(e);
+            log.info("Successfully deleted dentist with ID {}", id);
+        } catch (DataIntegrityViolationException e) {
+            log.warn("Deletion failed for dentist ID {} due to associated records: {}", id, e.getMessage());
             throw new BadRequestException("Deletion failed due to associated records");
-        }
-        catch (Exception e){
-            System.out.println(e);
+        } catch (Exception e) {
+            log.error("Unexpected error occurred while deleting dentist ID {}: {}", id, e.getMessage(), e);
             throw new BadRequestException("Deletion failed");
         }
     }
 
     @Override
     public DentistResponseDTO updateDentist(Long id, DentistUpdateDTO dentistRequestDTO) {
-        var existingDentist = dentistRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User with id " + id + " not found"));
+        log.info("Updating dentist with ID {}", id);
+        log.debug("Update request payload: {}", dentistRequestDTO);
+
+        var existingDentist = dentistRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("Dentist with ID {} not found", id);
+                    return new ResourceNotFoundException("User with id " + id + " not found");
+                });
 
         // Check if email is taken by another user
         userRepository.findByEmailAddress(dentistRequestDTO.email())
                 .filter(user -> !user.getUserId().equals(id))
-                .ifPresent(u -> { throw new BadRequestException("Email is already in use by another user"); });
+                .ifPresent(user -> {
+                    log.warn("Email '{}' is already used by another user with ID {}", dentistRequestDTO.email(), user.getUserId());
+                    throw new BadRequestException("Email is already in use by another user");
+                });
 
         // Check if phone number is taken by another user
         userRepository.findByPhoneNumber(dentistRequestDTO.phoneNumber())
                 .filter(user -> !user.getUserId().equals(id))
-                .ifPresent(u -> { throw new BadRequestException("Phone number is already in use by another user"); });
+                .ifPresent(user -> {
+                    log.warn("Phone number '{}' is already used by another user with ID {}", dentistRequestDTO.phoneNumber(), user.getUserId());
+                    throw new BadRequestException("Phone number is already in use by another user");
+                });
 
         existingDentist.setFirstName(dentistRequestDTO.firstName());
         existingDentist.setLastName(dentistRequestDTO.lastName());
         existingDentist.setPhoneNumber(dentistRequestDTO.phoneNumber());
         existingDentist.setEmailAddress(dentistRequestDTO.email());
         existingDentist.setSpecialization(dentistRequestDTO.specialization());
-        return dentistMapper.mapToDentistResponseDTO(dentistRepository.save(existingDentist));
+
+        Dentist updatedDentist = dentistRepository.save(existingDentist);
+        log.info("Successfully updated dentist with ID {}", updatedDentist.getUserId());
+
+        return dentistMapper.mapToDentistResponseDTO(updatedDentist);
     }
 
     public Page<DentistResponseDTO> getFilteredDentists(DentistFilterDTO filterDTO, Pageable pageable) {
+        log.debug("Fetching filtered dentists with filter: {}", filterDTO);
         Specification<Dentist> spec = Specification.where(null);
 
         if (filterDTO.firstName() != null) spec = spec.and(DentistSpecification.hasFirstName(filterDTO.firstName()));
@@ -112,6 +150,7 @@ public class DentistServiceImpl implements DentistService {
         if (filterDTO.specialization() != null) spec = spec.and(DentistSpecification.hasSpecialization(filterDTO.specialization()));
 
         var dentists = dentistRepository.findAll(spec, pageable);
+        log.info("Fetched dentists with filter: got {} on page {}", dentists.getNumberOfElements(), pageable.getPageNumber());
         return dentists.map(dentistMapper::mapToDentistResponseDTO);
     }
 
